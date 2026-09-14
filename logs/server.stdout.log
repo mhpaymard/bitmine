@@ -1,0 +1,98 @@
+
+> @mitm/server@0.1.0 start:prod D:\15 - personal task\mine-bitcoin-in-the-middle\apps\server
+> node dist/main.js
+
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [NestFactory] Starting Nest application...
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [InstanceLoader] AppModule dependencies initialized +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [InstanceLoader] ConfigHostModule dependencies initialized +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [InstanceLoader] DiscoveryModule dependencies initialized +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [InstanceLoader] ConfigModule dependencies initialized +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [InstanceLoader] EventEmitterModule dependencies initialized +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [InstanceLoader] ScheduleModule dependencies initialized +1ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [InstanceLoader] LoggerModule dependencies initialized +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [InstanceLoader] DatabaseModule dependencies initialized +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [InstanceLoader] RedisModule dependencies initialized +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [InstanceLoader] SecurityModule dependencies initialized +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [InstanceLoader] GatewayModule dependencies initialized +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [InstanceLoader] EventsModule dependencies initialized +1ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [InstanceLoader] HealthModule dependencies initialized +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [InstanceLoader] AlertsModule dependencies initialized +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [InstanceLoader] AuditModule dependencies initialized +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [InstanceLoader] LedgerModule dependencies initialized +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [InstanceLoader] UpstreamsModule dependencies initialized +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [InstanceLoader] CustomersModule dependencies initialized +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [InstanceLoader] WalletsModule dependencies initialized +1ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [InstanceLoader] SettingsModule dependencies initialized +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [InstanceLoader] AuthModule dependencies initialized +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [InstanceLoader] PayoutsModule dependencies initialized +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [InstanceLoader] StatsModule dependencies initialized +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RoutesResolver] EventsController {/api/v1/events}: +1ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/events, GET} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RoutesResolver] AuditController {/api/v1/audit}: +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/audit/verify, GET} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/audit, GET} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RoutesResolver] AuthController {/api/v1/auth}: +1ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/login, POST} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/logout, POST} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/me, GET} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/totp/setup, POST} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/totp/enable, POST} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RoutesResolver] AlertsController {/api/v1/alerts}: +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/alerts, GET} route +1ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/alerts/:id/resolve, POST} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RoutesResolver] CustomersController {/api/v1/customers}: +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/customers, GET} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/customers/:id, GET} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/customers, POST} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/customers/:id, PATCH} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/customers/:id/disable, POST} route +1ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/customers/:id/enable, POST} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/customers/:id/workers, POST} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/customers/workers/:workerId/credentials/rotate, POST} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/customers/credentials/:credentialId/revoke, POST} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/customers/:id/split-policies, POST} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/customers/:id/payout-destinations, POST} route +1ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RoutesResolver] WalletsController {/api/v1/wallets}: +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/wallets/status, GET} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/wallets/validate-address, POST} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/wallets/receive-address, POST} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/wallets/scan, POST} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/wallets/deposits, GET} route +1ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RoutesResolver] LedgerController {/api/v1/ledger}: +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/ledger/transactions, GET} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/ledger/trial-balance/:asset, GET} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/ledger/allocate/:depositId, POST} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RoutesResolver] UpstreamsController {/api/v1/upstreams}: +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/upstreams, GET} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/upstreams, POST} route +1ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/upstreams/:id, PATCH} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/upstreams/:id/test, POST} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RoutesResolver] SettingsController {/api/v1/settings}: +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/settings, GET} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/settings/payout-schedule, PUT} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/settings/operator-payout, PUT} route +1ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RoutesResolver] PayoutsController {/api/v1/payouts}: +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/payouts, GET} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/payouts/plan, POST} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/payouts/operator/plan, POST} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/payouts/:id/approve, POST} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/payouts/:id/execute, POST} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/payouts/reconcile, POST} route +1ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RoutesResolver] StatsController {/api/v1/stats}: +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/stats/dashboard, GET} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/api/v1/stats/workers, GET} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RoutesResolver] HealthController {/health}: +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/health/live, GET} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/health/ready, GET} route +1ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RoutesResolver] MetricsController {/metrics}: +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [RouterExplorer] Mapped {/metrics, GET} route +0ms
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [GatewayService] Bitcoin Stratum V1 TCP listening on 0.0.0.0:3333
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [GatewayService] Bitcoin Stratum V1 TLS listening on 0.0.0.0:443
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [GatewayService] Monero JSON-RPC TCP listening on 0.0.0.0:4444
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [GatewayService] Monero JSON-RPC TLS listening on 0.0.0.0:4443
+[Nest] 9992  - 09/15/2026, 1:27:29 AM     LOG [NestApplication] Nest application successfully started +0ms
+{"level":30,"time":1789423056401,"pid":9992,"hostname":"DESKTOP-KIR9OPM","req":{"id":"req-1","method":"GET","url":"/health/ready","query":{},"headers":{"user-agent":"Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.9444","host":"127.0.0.1:3000","connection":"Keep-Alive"},"remoteAddress":"127.0.0.1","remotePort":60841},"res":{"statusCode":200,"headers":{"content-security-policy":"default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' 'unsafe-inline';upgrade-insecure-requests;connect-src 'self'","cross-origin-opener-policy":"same-origin","cross-origin-resource-policy":"same-origin","origin-agent-cluster":"?1","referrer-policy":"no-referrer","strict-transport-security":"max-age=31536000; includeSubDomains","x-content-type-options":"nosniff","x-dns-prefetch-control":"off","x-download-options":"noopen","x-frame-options":"SAMEORIGIN","x-permitted-cross-domain-policies":"none","x-xss-protection":"0","vary":"Origin","access-control-allow-credentials":"true","x-ratelimit-limit":300,"x-ratelimit-remaining":299,"x-ratelimit-reset":60,"content-type":"application/json; charset=utf-8","content-length":"306"}},"responseTime":27,"msg":"request completed"}
+{"level":30,"time":1789423062036,"pid":9992,"hostname":"DESKTOP-KIR9OPM","req":{"id":"req-2","method":"GET","url":"/metrics","query":{},"headers":{"host":"host.docker.internal:3000","user-agent":"Prometheus/3.7.3","accept":"application/openmetrics-text;version=1.0.0;escaping=allow-utf-8;q=0.6,application/openmetrics-text;version=0.0.1;q=0.5,text/plain;version=1.0.0;escaping=allow-utf-8;q=0.4,text/plain;version=0.0.4;q=0.3,*/*;q=0.2","accept-encoding":"gzip","x-prometheus-scrape-timeout-seconds":"10"},"remoteAddress":"127.0.0.1","remotePort":60846},"res":{"statusCode":200,"headers":{"content-security-policy":"default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' 'unsafe-inline';upgrade-insecure-requests;connect-src 'self'","cross-origin-opener-policy":"same-origin","cross-origin-resource-policy":"same-origin","origin-agent-cluster":"?1","referrer-policy":"no-referrer","strict-transport-security":"max-age=31536000; includeSubDomains","x-content-type-options":"nosniff","x-dns-prefetch-control":"off","x-download-options":"noopen","x-frame-options":"SAMEORIGIN","x-permitted-cross-domain-policies":"none","x-xss-protection":"0","vary":"Origin, accept-encoding","access-control-allow-credentials":"true","x-ratelimit-limit":300,"x-ratelimit-remaining":298,"x-ratelimit-reset":55,"content-type":"text/plain; version=0.0.4; charset=utf-8","content-encoding":"gzip"}},"responseTime":103,"msg":"request completed"}
+{"level":30,"time":1789423076939,"pid":9992,"hostname":"DESKTOP-KIR9OPM","req":{"id":"req-3","method":"GET","url":"/metrics","query":{},"headers":{"host":"host.docker.internal:3000","user-agent":"Prometheus/3.7.3","accept":"application/openmetrics-text;version=1.0.0;escaping=allow-utf-8;q=0.6,application/openmetrics-text;version=0.0.1;q=0.5,text/plain;version=1.0.0;escaping=allow-utf-8;q=0.4,text/plain;version=0.0.4;q=0.3,*/*;q=0.2","accept-encoding":"gzip","x-prometheus-scrape-timeout-seconds":"10"},"remoteAddress":"127.0.0.1","remotePort":60846},"res":{"statusCode":200,"headers":{"content-security-policy":"default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' 'unsafe-inline';upgrade-insecure-requests;connect-src 'self'","cross-origin-opener-policy":"same-origin","cross-origin-resource-policy":"same-origin","origin-agent-cluster":"?1","referrer-policy":"no-referrer","strict-transport-security":"max-age=31536000; includeSubDomains","x-content-type-options":"nosniff","x-dns-prefetch-control":"off","x-download-options":"noopen","x-frame-options":"SAMEORIGIN","x-permitted-cross-domain-policies":"none","x-xss-protection":"0","vary":"Origin, accept-encoding","access-control-allow-credentials":"true","x-ratelimit-limit":300,"x-ratelimit-remaining":297,"x-ratelimit-reset":40,"content-type":"text/plain; version=0.0.4; charset=utf-8","content-encoding":"gzip"}},"responseTime":9,"msg":"request completed"}
+{"level":30,"time":1789423078884,"pid":9992,"hostname":"DESKTOP-KIR9OPM","req":{"id":"req-4","method":"GET","url":"/","query":{},"headers":{"user-agent":"Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.9444","host":"127.0.0.1:3000","connection":"Keep-Alive"},"remoteAddress":"127.0.0.1","remotePort":60856},"res":{"statusCode":200,"headers":{"content-security-policy":"default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' 'unsafe-inline';upgrade-insecure-requests;connect-src 'self'","cross-origin-opener-policy":"same-origin","cross-origin-resource-policy":"same-origin","origin-agent-cluster":"?1","referrer-policy":"no-referrer","strict-transport-security":"max-age=31536000; includeSubDomains","x-content-type-options":"nosniff","x-dns-prefetch-control":"off","x-download-options":"noopen","x-frame-options":"SAMEORIGIN","x-permitted-cross-domain-policies":"none","x-xss-protection":"0","vary":"Origin","access-control-allow-credentials":"true","x-ratelimit-limit":300,"x-ratelimit-remaining":296,"x-ratelimit-reset":38,"content-type":"text/html"}},"responseTime":6,"msg":"request completed"}
+{"level":30,"time":1789423091938,"pid":9992,"hostname":"DESKTOP-KIR9OPM","req":{"id":"req-5","method":"GET","url":"/metrics","query":{},"headers":{"host":"host.docker.internal:3000","user-agent":"Prometheus/3.7.3","accept":"application/openmetrics-text;version=1.0.0;escaping=allow-utf-8;q=0.6,application/openmetrics-text;version=0.0.1;q=0.5,text/plain;version=1.0.0;escaping=allow-utf-8;q=0.4,text/plain;version=0.0.4;q=0.3,*/*;q=0.2","accept-encoding":"gzip","x-prometheus-scrape-timeout-seconds":"10"},"remoteAddress":"127.0.0.1","remotePort":60846},"res":{"statusCode":200,"headers":{"content-security-policy":"default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' 'unsafe-inline';upgrade-insecure-requests;connect-src 'self'","cross-origin-opener-policy":"same-origin","cross-origin-resource-policy":"same-origin","origin-agent-cluster":"?1","referrer-policy":"no-referrer","strict-transport-security":"max-age=31536000; includeSubDomains","x-content-type-options":"nosniff","x-dns-prefetch-control":"off","x-download-options":"noopen","x-frame-options":"SAMEORIGIN","x-permitted-cross-domain-policies":"none","x-xss-protection":"0","vary":"Origin, accept-encoding","access-control-allow-credentials":"true","x-ratelimit-limit":300,"x-ratelimit-remaining":295,"x-ratelimit-reset":25,"content-type":"text/plain; version=0.0.4; charset=utf-8","content-encoding":"gzip"}},"responseTime":9,"msg":"request completed"}

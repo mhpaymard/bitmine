@@ -2,23 +2,23 @@ node_modules/
 .pnpm-store/
 dist/
 coverage/
-.turbo/
-.vite/
-.env
-.env.*
-!.env.example
-!.env.infrastructure.example
-*.log
-data/
-backups/
-secrets/*
-!secrets/.gitkeep
-.env.infrastructure
-apps/server/src/generated/
-apps/admin/dist/
-apps/server/test/load/credentials.json
-prisma/dev.db
-.idea/
-.vscode/
-Thumbs.db
-.DS_Store
+# .turbo/
+# .vite/
+# .env
+# .env.*
+# !.env.example
+# !.env.infrastructure.example
+# *.log
+# data/
+# backups/
+# secrets/*
+# !secrets/.gitkeep
+# .env.infrastructure
+# apps/server/src/generated/
+# apps/admin/dist/
+# apps/server/test/load/credentials.json
+# prisma/dev.db
+# .idea/
+# .vscode/
+# Thumbs.db
+# .DS_Store
