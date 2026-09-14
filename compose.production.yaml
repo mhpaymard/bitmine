@@ -1,0 +1,19 @@
+services:
+  caddy:
+    volumes:
+      - type: bind
+        source: ./infra/caddy/Caddyfile.production
+        target: /etc/caddy/Caddyfile
+        read_only: true
+      - type: bind
+        source: ./secrets/stratum-tls-cert.pem
+        target: /run/tls/cert.pem
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./secrets/stratum-tls-key.pem
+        target: /run/tls/key.pem
+        read_only: true
+        bind:
+          create_host_path: false

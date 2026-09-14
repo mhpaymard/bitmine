@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18.4-bookworm
+        env:
+          POSTGRES_DB: mining_gateway
+          POSTGRES_USER: mining
+          POSTGRES_PASSWORD: mining_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mining -d mining_gateway"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:8.2.3-alpine
+        ports:
+          - 6379:6379
+
+    env:
+      DATABASE_URL: postgresql://mining:mining_ci_password@127.0.0.1:5432/mining_gateway?schema=public
+      REDIS_URL: redis://127.0.0.1:6379/0
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm db:validate
+      - run: pnpm db:deploy
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm --filter @mitm/server test:coverage
+      - run: pnpm build
+      - run: pnpm audit --audit-level high
+      - run: docker compose --profile core --profile bitcoin --profile monero --profile observability --profile backup config --quiet

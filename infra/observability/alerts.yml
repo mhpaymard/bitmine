@@ -1,0 +1,38 @@
+groups:
+  - name: mining-gateway
+    rules:
+      - alert: MiningGatewayDown
+        expr: up{job="mining-gateway"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Mining Gateway API is unavailable
+      - alert: MiningGatewayOpenAlerts
+        expr: mining_gateway_open_alerts > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: The application has unresolved operational alerts
+      - alert: MiningGatewayNoActiveWorkers
+        expr: mining_gateway_active_worker_connections == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: No downstream workers are connected
+      - alert: MiningGatewayProcessMemoryHigh
+        expr: mining_gateway_process_resident_memory_bytes > 2 * 1024 * 1024 * 1024
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Gateway resident memory is above 2 GiB
+      - alert: MiningGatewayEventLoopLag
+        expr: mining_gateway_nodejs_eventloop_lag_p99_seconds > 0.25
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Gateway event loop p99 lag is high

@@ -1,0 +1,24 @@
+{
+	admin off
+	servers {
+		protocols h1 h2 h3
+	}
+}
+
+https://{$GATEWAY_DOMAIN:gateway.local} {
+	tls internal
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+		-Server
+	}
+	@private remote_ip {$ADMIN_ALLOWLIST:private_ranges}
+	handle @private {
+		reverse_proxy {$ADMIN_UPSTREAM:host.docker.internal:3000} {
+			flush_interval -1
+		}
+	}
+	respond "Forbidden" 403
+}

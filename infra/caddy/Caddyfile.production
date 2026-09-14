@@ -1,0 +1,24 @@
+{
+	admin off
+	servers {
+		protocols h1 h2 h3
+	}
+}
+
+https://{$GATEWAY_DOMAIN} {
+	tls /run/tls/cert.pem /run/tls/key.pem
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+		-Server
+	}
+	@private remote_ip {$ADMIN_ALLOWLIST}
+	handle @private {
+		reverse_proxy {$ADMIN_UPSTREAM} {
+			flush_interval -1
+		}
+	}
+	respond "Forbidden" 403
+}

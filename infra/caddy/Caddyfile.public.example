@@ -1,0 +1,21 @@
+{
+	admin off
+}
+
+gateway.example.com {
+	tls /run/tls/cert.pem /run/tls/key.pem
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+		-Server
+	}
+	@private remote_ip 203.0.113.10/32
+	handle @private {
+		reverse_proxy host.docker.internal:3000 {
+			flush_interval -1
+		}
+	}
+	respond "Forbidden" 403
+}

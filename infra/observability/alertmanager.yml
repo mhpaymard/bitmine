@@ -1,0 +1,11 @@
+route:
+  receiver: local-log
+  group_by: [alertname]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+  - name: local-log
+
+# Add an authenticated email, Slack or webhook receiver here before production.

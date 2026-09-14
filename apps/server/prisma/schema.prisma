@@ -1,0 +1,539 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AssetCode {
+  BTC
+  XMR
+}
+
+enum AdminRole {
+  OWNER
+  OPERATOR
+  VIEWER
+}
+
+enum EntityStatus {
+  ACTIVE
+  DISABLED
+  ARCHIVED
+}
+
+enum PoolProtocol {
+  BITCOIN_STRATUM_V1
+  MONERO_JSON_RPC
+}
+
+enum ShareStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  UNKNOWN
+}
+
+enum DepositStatus {
+  OBSERVED
+  CONFIRMED
+  ALLOCATED
+  REORGED
+  IGNORED
+}
+
+enum LedgerAccountType {
+  ASSET
+  LIABILITY
+  REVENUE
+  EXPENSE
+  CLEARING
+}
+
+enum LedgerDirection {
+  DEBIT
+  CREDIT
+}
+
+enum JournalType {
+  DEPOSIT
+  ALLOCATION
+  PAYOUT
+  NETWORK_FEE
+  ADJUSTMENT
+  REVERSAL
+}
+
+enum PayoutState {
+  PLANNED
+  APPROVAL_REQUIRED
+  AUTO_APPROVED
+  SIGNED
+  BROADCAST
+  CONFIRMED
+  FAILED
+  CANCELLED
+}
+
+enum PayoutKind {
+  CUSTOMER
+  OPERATOR
+}
+
+enum DestinationStatus {
+  PENDING
+  ACTIVE
+  REVOKED
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum AlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+model Admin {
+  id                  String   @id @default(uuid()) @db.Uuid
+  email               String   @unique @db.VarChar(320)
+  displayName         String   @db.VarChar(120)
+  passwordHash        String
+  role                 AdminRole @default(VIEWER)
+  status               EntityStatus @default(ACTIVE)
+  totpSecretCiphertext String?
+  totpEnabled          Boolean  @default(false)
+  failedLoginCount     Int      @default(0)
+  lockedUntil          DateTime?
+  lastLoginAt          DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  splitPolicies        SplitPolicyVersion[]
+  payoutApprovals      PayoutBatch[] @relation("PayoutApprover")
+  auditEvents          AuditEvent[]
+  backupCodes          AdminBackupCode[]
+}
+
+model AdminBackupCode {
+  id        String   @id @default(uuid()) @db.Uuid
+  adminId   String   @db.Uuid
+  codeHash  String
+  createdAt DateTime @default(now())
+  usedAt    DateTime?
+
+  admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId, usedAt])
+}
+
+model Customer {
+  id          String   @id @default(uuid()) @db.Uuid
+  slug        String   @unique @db.VarChar(48)
+  displayName String   @db.VarChar(160)
+  status      EntityStatus @default(ACTIVE)
+  timezone    String   @default("Asia/Tehran") @db.VarChar(64)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workers            Worker[]
+  splitPolicies      SplitPolicyVersion[]
+  payoutDestinations PayoutDestination[]
+  ledgerAccounts     LedgerAccount[]
+  allocationItems    AllocationItem[]
+  payoutItems        PayoutItem[]
+  shareEvents        ShareEvent[]
+  shareAggregates    ShareAggregate[]
+}
+
+model Worker {
+  id             String   @id @default(uuid()) @db.Uuid
+  customerId     String   @db.Uuid
+  slug           String   @db.VarChar(64)
+  asset          AssetCode
+  status         EntityStatus @default(ACTIVE)
+  maxConnections Int      @default(1)
+  allowedIps     String[]  @default([])
+  lastSeenAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  credentials WorkerCredential[]
+  connections ConnectionSession[]
+  shareEvents ShareEvent[]
+  aggregates  ShareAggregate[]
+
+  @@unique([customerId, asset, slug])
+  @@index([asset, status])
+}
+
+model WorkerCredential {
+  id          String   @id @default(uuid()) @db.Uuid
+  workerId    String   @db.Uuid
+  tokenHash   String
+  tokenPrefix String   @db.VarChar(16)
+  activeFrom  DateTime @default(now())
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  worker Worker @relation(fields: [workerId], references: [id], onDelete: Cascade)
+
+  @@index([workerId, activeFrom, expiresAt])
+}
+
+model SplitPolicyVersion {
+  id          String   @id @default(uuid()) @db.Uuid
+  customerId  String   @db.Uuid
+  asset       AssetCode
+  customerBps Int
+  operatorBps Int
+  effectiveAt DateTime
+  createdById String?  @db.Uuid
+  createdAt   DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  createdBy Admin? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  shareEvents ShareEvent[]
+  allocationItems AllocationItem[]
+
+  @@index([customerId, asset, effectiveAt(sort: Desc)])
+}
+
+model Upstream {
+  id                       String   @id @default(uuid()) @db.Uuid
+  /// Stable pool-account identity shared by failover endpoints. Deposits and
+  /// accepted work are reconciled across every endpoint with the same key.
+  accountKey               String   @db.VarChar(120)
+  asset                    AssetCode
+  protocol                 PoolProtocol
+  name                     String   @db.VarChar(120)
+  host                     String   @db.VarChar(255)
+  port                     Int
+  tls                      Boolean  @default(false)
+  priority                 Int      @default(100)
+  enabled                  Boolean  @default(true)
+  usernameTemplate         String   @db.VarChar(255)
+  passwordCiphertext       String?
+  receiveAddress           String?  @db.VarChar(256)
+  connectionTimeoutMs      Int      @default(10000)
+  failbackCooldownSeconds  Int      @default(300)
+  lastHealthAt             DateTime?
+  lastHealthOk             Boolean?
+  lastHealthMessage        String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  connections ConnectionSession[]
+  shareEvents ShareEvent[]
+  deposits Deposit[]
+  allocationBatches AllocationBatch[]
+
+  @@unique([asset, name])
+  @@unique([asset, accountKey, host, port, tls])
+  @@index([asset, accountKey, enabled])
+  @@index([asset, enabled, priority])
+}
+
+model ConnectionSession {
+  id             String   @id @default(uuid()) @db.Uuid
+  workerId       String   @db.Uuid
+  upstreamId     String?  @db.Uuid
+  asset          AssetCode
+  remoteIp       String   @db.VarChar(64)
+  clientAgent    String?  @db.VarChar(255)
+  difficulty     Decimal  @default(1) @db.Decimal(38, 18)
+  acceptedCount  BigInt   @default(0)
+  rejectedCount  BigInt   @default(0)
+  connectedAt    DateTime @default(now())
+  disconnectedAt DateTime?
+  disconnectCode String?  @db.VarChar(80)
+
+  worker Worker @relation(fields: [workerId], references: [id], onDelete: Restrict)
+  upstream Upstream? @relation(fields: [upstreamId], references: [id], onDelete: SetNull)
+  shareEvents ShareEvent[]
+
+  @@index([workerId, disconnectedAt])
+  @@index([asset, connectedAt])
+}
+
+model ShareEvent {
+  id                String   @default(uuid()) @db.Uuid
+  asset             AssetCode
+  customerId        String   @db.Uuid
+  workerId          String   @db.Uuid
+  upstreamId        String   @db.Uuid
+  connectionId      String   @db.Uuid
+  splitPolicyId     String   @db.Uuid
+  requestKey        String   @db.VarChar(160)
+  status            ShareStatus @default(PENDING)
+  difficulty        Decimal  @db.Decimal(38, 18)
+  normalizedWork    Decimal  @db.Decimal(65, 18)
+  submittedAt       DateTime @default(now())
+  resolvedAt        DateTime?
+  upstreamLatencyMs Int?
+  rejectReason      String?
+  allocationBatchId String?  @db.Uuid
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  worker Worker @relation(fields: [workerId], references: [id], onDelete: Restrict)
+  upstream Upstream @relation(fields: [upstreamId], references: [id], onDelete: Restrict)
+  connection ConnectionSession @relation(fields: [connectionId], references: [id], onDelete: Restrict)
+  splitPolicy SplitPolicyVersion @relation(fields: [splitPolicyId], references: [id], onDelete: Restrict)
+  allocationBatch AllocationBatch? @relation(fields: [allocationBatchId], references: [id], onDelete: SetNull)
+
+  @@id([id, submittedAt])
+  @@unique([connectionId, requestKey, submittedAt])
+  @@index([upstreamId, status, allocationBatchId, submittedAt])
+  @@index([customerId, asset, submittedAt])
+}
+
+model ShareAggregate {
+  id             String   @id @default(uuid()) @db.Uuid
+  bucketStart    DateTime
+  bucketSeconds  Int
+  asset          AssetCode
+  customerId     String   @db.Uuid
+  workerId       String   @db.Uuid
+  acceptedCount  BigInt   @default(0)
+  rejectedCount  BigInt   @default(0)
+  acceptedWork   Decimal  @default(0) @db.Decimal(65, 18)
+  rejectedWork   Decimal  @default(0) @db.Decimal(65, 18)
+  avgLatencyMs   Int?
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  worker Worker @relation(fields: [workerId], references: [id], onDelete: Restrict)
+
+  @@unique([bucketStart, bucketSeconds, workerId])
+  @@index([customerId, asset, bucketStart])
+}
+
+model WalletAccount {
+  id             String   @id @default(uuid()) @db.Uuid
+  asset          AssetCode
+  label          String   @db.VarChar(120)
+  network        String   @db.VarChar(32)
+  receiveAddress String?  @db.VarChar(256)
+  enabled        Boolean  @default(true)
+  lastBlockRef   String?  @db.VarChar(128)
+  lastScanAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([asset, label])
+}
+
+model Deposit {
+  id              String   @id @default(uuid()) @db.Uuid
+  asset           AssetCode
+  upstreamId      String   @db.Uuid
+  txid            String   @db.VarChar(128)
+  outputRef       String   @default("0") @db.VarChar(64)
+  amountAtomic    BigInt
+  confirmations   Int      @default(0)
+  locked          Boolean  @default(true)
+  status          DepositStatus @default(OBSERVED)
+  observedAt      DateTime @default(now())
+  confirmedAt     DateTime?
+  allocatedAt     DateTime?
+  raw             Json?
+
+  upstream Upstream @relation(fields: [upstreamId], references: [id], onDelete: Restrict)
+  allocationBatch AllocationBatch?
+
+  @@unique([asset, txid, outputRef])
+  @@index([status, asset, observedAt])
+}
+
+model AllocationBatch {
+  id                   String   @id @default(uuid()) @db.Uuid
+  asset                AssetCode
+  upstreamId           String   @db.Uuid
+  depositId            String   @unique @db.Uuid
+  totalAtomic          BigInt
+  customerTotalAtomic  BigInt
+  operatorTotalAtomic  BigInt
+  createdAt            DateTime @default(now())
+
+  upstream Upstream @relation(fields: [upstreamId], references: [id], onDelete: Restrict)
+  deposit Deposit @relation(fields: [depositId], references: [id], onDelete: Restrict)
+  items AllocationItem[]
+  shareEvents ShareEvent[]
+
+  @@index([asset, createdAt])
+}
+
+model AllocationItem {
+  id                   String   @id @default(uuid()) @db.Uuid
+  allocationBatchId    String   @db.Uuid
+  customerId           String   @db.Uuid
+  splitPolicyId        String   @db.Uuid
+  work                 Decimal  @db.Decimal(65, 18)
+  grossAtomic          BigInt
+  customerAtomic       BigInt
+  operatorAtomic       BigInt
+
+  allocationBatch AllocationBatch @relation(fields: [allocationBatchId], references: [id], onDelete: Restrict)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  splitPolicy SplitPolicyVersion @relation(fields: [splitPolicyId], references: [id], onDelete: Restrict)
+
+  @@unique([allocationBatchId, customerId, splitPolicyId])
+}
+
+model LedgerAccount {
+  id          String   @id @default(uuid()) @db.Uuid
+  asset       AssetCode
+  customerId  String?  @db.Uuid
+  code        String   @db.VarChar(120)
+  name        String   @db.VarChar(160)
+  type        LedgerAccountType
+  createdAt   DateTime @default(now())
+
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  entries JournalEntry[]
+
+  @@unique([asset, code])
+  @@index([customerId, asset])
+}
+
+model JournalTransaction {
+  id            String   @id @default(uuid()) @db.Uuid
+  asset         AssetCode
+  type          JournalType
+  referenceType String   @db.VarChar(80)
+  referenceId   String   @db.VarChar(128)
+  description   String?
+  metadata      Json?
+  occurredAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  entries JournalEntry[]
+  payoutItems PayoutItem[]
+
+  @@unique([asset, type, referenceType, referenceId])
+  @@index([asset, occurredAt])
+}
+
+model JournalEntry {
+  id            String   @id @default(uuid()) @db.Uuid
+  transactionId String   @db.Uuid
+  accountId     String   @db.Uuid
+  direction     LedgerDirection
+  amountAtomic  BigInt
+  createdAt     DateTime @default(now())
+
+  transaction JournalTransaction @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+  account LedgerAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([accountId, createdAt])
+}
+
+model PayoutDestination {
+  id               String   @id @default(uuid()) @db.Uuid
+  customerId       String   @db.Uuid
+  asset            AssetCode
+  address          String   @db.VarChar(256)
+  status           DestinationStatus @default(PENDING)
+  effectiveAt      DateTime
+  minPayoutAtomic  BigInt
+  createdAt        DateTime @default(now())
+  revokedAt        DateTime?
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@index([customerId, asset, status, effectiveAt])
+}
+
+model PayoutBatch {
+  id                   String   @id @default(uuid()) @db.Uuid
+  asset                AssetCode
+  kind                 PayoutKind @default(CUSTOMER)
+  state                PayoutState @default(PLANNED)
+  scheduledFor         DateTime
+  totalGrossAtomic     BigInt   @default(0)
+  totalFeeAtomic       BigInt   @default(0)
+  totalNetAtomic       BigInt   @default(0)
+  transactionIds       String[] @default([])
+  signedPayload        String?
+  approvalThresholdHit Boolean  @default(false)
+  approvedById         String?  @db.Uuid
+  approvedAt           DateTime?
+  broadcastAt          DateTime?
+  confirmedAt          DateTime?
+  errorCode            String?  @db.VarChar(80)
+  errorMessage         String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  approvedBy Admin? @relation("PayoutApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  items PayoutItem[]
+
+  @@index([asset, state, scheduledFor])
+  @@index([kind, asset, state])
+}
+
+model PayoutItem {
+  id                   String   @id @default(uuid()) @db.Uuid
+  batchId              String   @db.Uuid
+  customerId           String?  @db.Uuid
+  destination          String   @db.VarChar(256)
+  grossAtomic          BigInt
+  allocatedFeeAtomic   BigInt   @default(0)
+  netAtomic            BigInt
+  journalTransactionId String?  @db.Uuid
+
+  batch PayoutBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  journalTransaction JournalTransaction? @relation(fields: [journalTransactionId], references: [id], onDelete: SetNull)
+
+  @@unique([batchId, customerId])
+}
+
+model AuditEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  sequence   BigInt   @unique @default(autoincrement())
+  actorId    String?  @db.Uuid
+  action     String   @db.VarChar(120)
+  entityType String   @db.VarChar(80)
+  entityId   String?  @db.VarChar(128)
+  ipAddress  String?  @db.VarChar(64)
+  before     Json?
+  after      Json?
+  previousHash String? @db.VarChar(64)
+  eventHash  String   @unique @db.VarChar(64)
+  createdAt  DateTime @default(now())
+
+  actor Admin? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([entityType, entityId])
+}
+
+model Alert {
+  id           String   @id @default(uuid()) @db.Uuid
+  dedupeKey    String   @db.VarChar(160)
+  severity     AlertSeverity
+  status       AlertStatus @default(OPEN)
+  title        String   @db.VarChar(200)
+  message      String
+  metadata     Json?
+  firstSeenAt  DateTime @default(now())
+  lastSeenAt   DateTime @default(now())
+  resolvedAt   DateTime?
+
+  @@index([status, severity, lastSeenAt(sort: Desc)])
+  @@index([dedupeKey, status])
+}
+
+model SystemSetting {
+  key       String   @id @db.VarChar(120)
+  value     Json
+  updatedAt DateTime @updatedAt
+}

@@ -1,0 +1,51 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Active workers",
+      "id": 1,
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+      "targets": [{ "expr": "mining_gateway_active_worker_connections", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Open alerts",
+      "id": 2,
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+      "targets": [{ "expr": "mining_gateway_open_alerts", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Resolved shares / second",
+      "id": 3,
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+      "targets": [{ "expr": "sum by (asset, status) (rate(mining_gateway_resolved_shares_total[5m]))", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Process memory",
+      "id": 4,
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [{ "expr": "mining_gateway_process_resident_memory_bytes", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Event-loop lag p99",
+      "id": 5,
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [{ "expr": "mining_gateway_nodejs_eventloop_lag_p99_seconds", "refId": "A" }]
+    }
+  ],
+  "refresh": "15s",
+  "schemaVersion": 42,
+  "tags": ["mining", "gateway"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "timezone": "browser",
+  "title": "Mining Gateway Overview",
+  "uid": "mining-gateway-overview",
+  "version": 1
+}
