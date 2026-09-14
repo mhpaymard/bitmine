@@ -5,6 +5,8 @@ wallet_name="${MONERO_WALLET_NAME:-mining-gateway}"
 wallet_path="/wallet/$wallet_name"
 wallet_password_file=/run/secrets/monero_wallet_passphrase
 rpc_password="$(cat /run/secrets/monero_rpc_password)"
+rpc_user="${MONERO_RPC_USER:-miningrpc}"
+rpc_config=/tmp/monero-wallet-rpc.conf
 
 case "${MONERO_NETWORK:-stagenet}" in
   mainnet) network_flag="" ;;
@@ -15,6 +17,10 @@ esac
 
 mkdir -p /wallet
 chown -R monero:monero /wallet
+umask 077
+printf 'rpc-login=%s:%s\n' "$rpc_user" "$rpc_password" > "$rpc_config"
+chown monero:monero "$rpc_config"
+unset rpc_password
 if [ ! -f "$wallet_path" ]; then
   if [ "${MONERO_BOOTSTRAP_WALLET:-false}" != "true" ]; then
     echo "Monero wallet is missing. Set MONERO_BOOTSTRAP_WALLET=true once, then secure its seed file." >&2
@@ -38,6 +44,6 @@ exec gosu monero monero-wallet-rpc $network_flag \
   --rpc-bind-ip 0.0.0.0 \
   --rpc-bind-port 38088 \
   --confirm-external-bind \
-  --rpc-login "${MONERO_RPC_USER:-miningrpc}:$rpc_password" \
+  --config-file "$rpc_config" \
   --disable-rpc-ban \
   --non-interactive

@@ -45,10 +45,23 @@ Check 'Configuration and secrets' {
     'secrets/postgres-password.txt', 'secrets/redis-password.txt',
     'secrets/bitcoin-rpc-password.txt', 'secrets/bitcoin-wallet-passphrase.txt',
     'secrets/monero-rpc-password.txt', 'secrets/monero-wallet-passphrase.txt',
+    'secrets/grafana-admin-password.txt',
     'secrets/stratum-tls-cert.pem', 'secrets/stratum-tls-key.pem'
   )
   $missing = $required | Where-Object { -not (Test-Path -LiteralPath $_) }
   if ($missing) { throw "Missing: $($missing -join ', ')" }
+
+  $backupLine = Get-Content -LiteralPath '.env.infrastructure' |
+    Where-Object { $_ -match '^BACKUP_AGE_RECIPIENT=age1[0-9a-z]+$' } |
+    Select-Object -Last 1
+  if (-not $backupLine) { throw 'BACKUP_AGE_RECIPIENT must contain a valid age public recipient' }
+  if (Test-Path -LiteralPath 'secrets/backup-age-identity.txt') {
+    throw 'The private age identity must not be stored on the production server'
+  }
+  if (
+    (Test-Path -LiteralPath 'INITIAL_WALLET_SEED.txt') -or
+    (Test-Path -LiteralPath 'secrets/INITIAL_WALLET_SEED.txt')
+  ) { throw 'A plaintext Monero seed remains on the production server' }
 }
 
 Check 'Production configuration policy' {

@@ -92,6 +92,7 @@ BITCOIN_GATEWAY_TLS_KEY_FILE=../../secrets/stratum-tls-key.pem
 - [مدل تهدید و امنیت](docs/THREAT_MODEL.md)
 - [افزودن استخر](docs/POOL_ONBOARDING.fa.md)
 - [استقرار Windows و Ubuntu](docs/DEPLOYMENT.fa.md)
+- [راهنمای کامل Production](docs/PRODUCTION_RUNBOOK.fa.md)
 - [عملیات روزانه](docs/OPERATIONS.fa.md)
 - [Backup و Restore](docs/BACKUP_RESTORE.fa.md)
 - [عیب‌یابی](docs/TROUBLESHOOTING.fa.md)

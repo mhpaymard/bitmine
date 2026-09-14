@@ -1,6 +1,6 @@
 FROM debian:bookworm-slim AS verify
 
-ARG MONERO_VERSION=0.18.5.0
+ARG MONERO_VERSION=0.18.5.1
 ARG TARGETARCH
 
 RUN apt-get update \

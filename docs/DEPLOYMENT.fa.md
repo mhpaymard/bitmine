@@ -1,5 +1,7 @@
 # استقرار Windows و Ubuntu
 
+برای استقرار واقعی Ubuntu، تولید secretها، TLS/renewal، wallet backup، systemd، preflight، تست miner و معیار Go/No-Go از [راهنمای کامل Production](PRODUCTION_RUNBOOK.fa.md) استفاده کنید. این صفحه فقط خلاصه معماری deployment است.
+
 ## شبکه و ظرفیت
 
 سرور پیشنهادی: 8 هسته، 16 GiB RAM، SSD با حداقل 250 GiB فضای آزاد و NIC پایدار. پورت‌های plaintext 3333/4444 فقط برای VLAN ماینرها باشند. برای ماینرهای راه دور، Bitcoin Stratum TLS روی 443 و پنل مدیریت HTTPS روی 8443/VPN قرار می‌گیرد. RPC/DB/Redis فقط برای loopback باز باشند.
