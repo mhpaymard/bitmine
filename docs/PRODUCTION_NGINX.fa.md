@@ -6,12 +6,12 @@
 
 روی یک IP عمومی، دو process نمی‌توانند هم‌زمان روی `0.0.0.0:443` گوش کنند. معماری پیش‌فرض این راهنما:
 
-| سرویس                                 | آدرس نهایی          | پورت |
-| ------------------------------------- | ------------------- | ---: |
+| سرویس                                 | آدرس نهایی        | پورت |
+| ------------------------------------- | ----------------- | ---: |
 | پرتال و پنل HTTPS از طریق Nginx       | `panel.partie.ir` |  443 |
 | Bitcoin Stratum TLS مستقیم به Gateway | `btc.partie.ir`   | 3334 |
 | Monero TLS مستقیم به Gateway          | `xmr.partie.ir`   | 4443 |
-| API داخلی NestJS                      | `127.0.0.1`         | 3000 |
+| API داخلی NestJS                      | `127.0.0.1`       | 3000 |
 
 اگر BTC حتماً باید روی 443 باشد، یک IP عمومی دوم بگیرید: Nginx را با `WEB_BIND_IP` روی IP وب و Gateway را با `BITCOIN_BIND_IP` روی IP ماینینگ bind کنید و `BITCOIN_TLS_PORT=443` بگذارید. multiplex کردن HTTPS و Stratum با SNI برای همه ASICها قابل اتکا نیست و مسیر پیش‌فرض این راهنما نیست.
 
@@ -33,6 +33,12 @@ Nginx فقط `/portal`، `/assets/*` و دو API عمومی پرتال را بر
 - مقصدهای payout و سیاست fee/minimum که دو نفره بازبینی شده باشند.
 
 دامنه اصلی `partie.ir` برای وب‌سایت اصلی/آینده رزرو می‌ماند و Gateway فقط از سه subdomain بالا استفاده می‌کند. در DNS سه رکورد `A` زیر را به IP عمومی production اشاره دهید. رکورد `AAAA` را فقط اگر IPv6 واقعاً firewall و route شده است بسازید:
+
+| Type | Host/Name | Value               | Proxy                       |
+| ---- | --------- | ------------------- | --------------------------- |
+| `A`  | `panel`   | IP عمومی production | خاموش/DNS-only تا پایان تست |
+| `A`  | `btc`     | IP عمومی production | خاموش/DNS-only              |
+| `A`  | `xmr`     | IP عمومی production | خاموش/DNS-only              |
 
 ```bash
 dig +short A panel.partie.ir
@@ -143,16 +149,18 @@ sudoedit /etc/mining-gateway/deploy.env
 
 | متغیر                  | مقدار                                                      |
 | ---------------------- | ---------------------------------------------------------- |
-| `PANEL_DOMAIN`         | دامنه HTTPS پنل و پرتال                                    |
-| `MINING_DOMAIN`        | hostname گواهی و اتصال BTC                                 |
-| `XMR_DOMAIN`           | hostname اتصال XMR                                         |
-| `LE_EMAIL`             | ایمیل Let's Encrypt                                        |
-| `ADMIN_CIDR`           | یک IP به‌شکل `/32` یا subnet VPN؛ هرگز `0.0.0.0/0` نگذارید |
-| `WEB_BIND_IP`          | روی تک-IP برابر `0.0.0.0`؛ روی دو-IP برابر IP وب           |
-| `BITCOIN_BIND_IP`      | روی تک-IP برابر `0.0.0.0`؛ روی دو-IP برابر IP ماینینگ      |
-| `BITCOIN_TLS_PORT`     | روی تک-IP `3334`؛ با IP دوم می‌تواند `443` باشد            |
-| `MONERO_TLS_PORT`      | معمولاً `4443`                                             |
-| `BACKUP_AGE_RECIPIENT` | فقط کلید عمومی `age1...`                                   |
+| `PANEL_DOMAIN`         | `panel.partie.ir`                                          |
+| `MINING_DOMAIN`        | `btc.partie.ir`                                            |
+| `XMR_DOMAIN`           | `xmr.partie.ir`                                            |
+| `LE_EMAIL`             | ایمیل واقعی عملیات و Let's Encrypt                         |
+| `ADMIN_CIDR`           | IP مدیریت به‌شکل `/32` یا subnet VPN؛ هرگز `0.0.0.0/0`     |
+| `WEB_BIND_IP`          | `0.0.0.0` در معماری تک-IP فعلی                             |
+| `BITCOIN_BIND_IP`      | `0.0.0.0` در معماری تک-IP فعلی                             |
+| `BITCOIN_TLS_PORT`     | `3334` در معماری تک-IP فعلی                                |
+| `MONERO_BIND_IP`       | `0.0.0.0` در معماری تک-IP فعلی                             |
+| `MONERO_TLS_PORT`      | `4443`                                                     |
+| `CERT_NAME`            | `partie-gateway`؛ certificate شامل هر سه subdomain می‌شود  |
+| `BACKUP_AGE_RECIPIENT` | فقط کلید عمومی `age1...`؛ identity خصوصی وارد سرور نمی‌شود |
 
 فایل را load و envهای واقعی را به‌صورت atomic بسازید:
 
@@ -170,7 +178,7 @@ exit
 اسکریپت [render-production-env.sh](../scripts/render-production-env.sh) تمام متغیرهای برنامه را می‌نویسد. مقادیر امنیتی مهم آن:
 
 - `HTTP_HOST=127.0.0.1`: API مستقیماً عمومی نیست؛
-- `ADMIN_ORIGIN=https://PANEL_DOMAIN`: CORS و cookie فقط origin واقعی؛
+- `ADMIN_ORIGIN=https://panel.partie.ir`: CORS و cookie فقط origin واقعی؛
 - `TRUST_PROXY=127.0.0.1,::1`: فقط Nginx محلی trusted است؛
 - listenerهای plaintext خاموش؛
 - BTC TLS روی 3334 و XMR TLS روی 4443؛
@@ -193,15 +201,20 @@ exit
 - `3000`, `5432`, `6379`, `18443`, `38081`, `38088`, `3001`, `9090`, `9093`, `3100`: عمومی نباشند.
 
 ```bash
-sudo ufw default deny incoming
-sudo ufw default allow outgoing
-sudo ufw allow from YOUR_ADMIN_IP to any port 22 proto tcp
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-sudo ufw allow 3334/tcp
-sudo ufw allow 4443/tcp
-sudo ufw enable
-sudo ufw status verbose
+sudo -i
+set -a
+source /etc/mining-gateway/deploy.env
+set +a
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow from "$ADMIN_CIDR" to any port 22 proto tcp
+ufw allow 80/tcp
+ufw allow 443/tcp
+ufw allow 3334/tcp
+ufw allow 4443/tcp
+ufw enable
+ufw status verbose
+exit
 ```
 
 Docker ممکن است ruleهای UFW را دور بزند؛ این پروژه پورت‌های DB/RPC/monitoring را فقط روی `127.0.0.1` publish می‌کند. خروجی `docker ps` و chain `DOCKER-USER` را نیز بازبینی کنید.
