@@ -9,14 +9,24 @@ import type { Environment } from '../config/environment';
 import { PrismaService } from '../database/prisma.service';
 import { WalletsService } from '../wallets/wallets.service';
 import {
+  NetworkFeePayer,
   OperatorPayoutMode,
+  PayoutScheduleMode,
   type UpdateOperatorPayoutDto,
   type UpdatePayoutScheduleDto,
 } from './settings.dto';
 
-export interface PayoutScheduleSetting {
-  time: string;
+export interface PayoutPolicySetting {
+  mode: PayoutScheduleMode;
+  intervalMinutes: number;
+  minuteOffset: number;
+  dailyTime: string;
   timezone: string;
+  feePayer: NetworkFeePayer;
+  maxFeeBps: number;
+  maxBatchItems: number;
+  minimumAtomic: Record<AssetCode, string>;
+  dailyAutoLimitAtomic: Record<AssetCode, string>;
 }
 
 export interface OperatorPayoutSetting {
@@ -47,25 +57,98 @@ export class SettingsService {
       this.setting<OperatorPayoutSetting>('operator.payout.pending.XMR'),
     ]);
     return {
-      payoutSchedule: schedule,
+      payoutPolicy: schedule,
+      payoutSchedule: { time: schedule.dailyTime, timezone: schedule.timezone },
       operatorPayouts: { BTC: btc, XMR: xmr },
       pendingOperatorPayouts: { BTC: pendingBtc, XMR: pendingXmr },
     };
   }
 
-  async payoutSchedule(): Promise<PayoutScheduleSetting> {
-    return (
-      (await this.setting<PayoutScheduleSetting>('payout.schedule')) ?? {
-        time: '00:15',
-        timezone: this.config.get('PAYOUT_TIMEZONE', { infer: true }),
-      }
+  async payoutPolicy(): Promise<PayoutPolicySetting> {
+    const stored = await this.setting<Partial<PayoutPolicySetting> & { time?: string }>(
+      'payout.schedule',
     );
+    return {
+      mode: stored?.mode ?? PayoutScheduleMode.DAILY,
+      intervalMinutes: stored?.intervalMinutes ?? 60,
+      minuteOffset: stored?.minuteOffset ?? 5,
+      dailyTime: stored?.dailyTime ?? stored?.time ?? '00:15',
+      timezone: stored?.timezone ?? this.config.get('PAYOUT_TIMEZONE', { infer: true }),
+      feePayer: stored?.feePayer ?? NetworkFeePayer.OPERATOR,
+      maxFeeBps: stored?.maxFeeBps ?? 200,
+      maxBatchItems: stored?.maxBatchItems ?? 500,
+      minimumAtomic: {
+        BTC:
+          stored?.minimumAtomic?.BTC ??
+          this.config.get('BITCOIN_MIN_PAYOUT_ATOMIC', { infer: true }).toString(),
+        XMR:
+          stored?.minimumAtomic?.XMR ??
+          this.config.get('MONERO_MIN_PAYOUT_ATOMIC', { infer: true }).toString(),
+      },
+      dailyAutoLimitAtomic: {
+        BTC:
+          stored?.dailyAutoLimitAtomic?.BTC ??
+          this.config.get('BITCOIN_DAILY_AUTO_LIMIT_ATOMIC', { infer: true }).toString(),
+        XMR:
+          stored?.dailyAutoLimitAtomic?.XMR ??
+          this.config.get('MONERO_DAILY_AUTO_LIMIT_ATOMIC', { infer: true }).toString(),
+      },
+    };
+  }
+
+  async payoutSchedule(): Promise<PayoutPolicySetting> {
+    return this.payoutPolicy();
+  }
+
+  async nextCustomerPayoutAt(reference: DateTime<boolean> = DateTime.now()): Promise<{
+    at: string;
+    localAt: string;
+    policy: PayoutPolicySetting;
+  }> {
+    const policy = await this.payoutPolicy();
+    let next: DateTime<boolean>;
+    if (policy.mode === PayoutScheduleMode.INTERVAL) {
+      const intervalMs = policy.intervalMinutes * 60_000;
+      const offsetMs = policy.minuteOffset * 60_000;
+      const nextIndex = Math.floor((reference.toMillis() - offsetMs) / intervalMs) + 1;
+      next = DateTime.fromMillis(nextIndex * intervalMs + offsetMs, { zone: 'utc' });
+    } else {
+      const local = reference.setZone(policy.timezone);
+      const [hour, minute] = policy.dailyTime.split(':').map(Number);
+      const today = local.startOf('day').set({ hour, minute });
+      next = local < today ? today : today.plus({ days: 1 });
+    }
+    return {
+      at: next.toUTC().toISO()!,
+      localAt: next.setZone(policy.timezone).toISO()!,
+      policy,
+    };
   }
 
   async updatePayoutSchedule(dto: UpdatePayoutScheduleDto, actor: AuthenticatedAdmin) {
     if (!IANAZone.isValidZone(dto.timezone)) throw new BadRequestException('Invalid IANA timezone');
-    const before = await this.payoutSchedule();
-    const value: PayoutScheduleSetting = { time: dto.time, timezone: dto.timezone };
+    if (BigInt(dto.bitcoinMinimumAtomic) <= 0n || BigInt(dto.moneroMinimumAtomic) <= 0n) {
+      throw new BadRequestException('Payout minimums must be greater than zero');
+    }
+    const before = await this.payoutPolicy();
+    const value: PayoutPolicySetting = {
+      mode: dto.mode,
+      intervalMinutes: dto.intervalMinutes,
+      minuteOffset: dto.minuteOffset,
+      dailyTime: dto.dailyTime,
+      timezone: dto.timezone,
+      feePayer: dto.feePayer,
+      maxFeeBps: dto.maxFeeBps,
+      maxBatchItems: dto.maxBatchItems,
+      minimumAtomic: {
+        BTC: dto.bitcoinMinimumAtomic,
+        XMR: dto.moneroMinimumAtomic,
+      },
+      dailyAutoLimitAtomic: {
+        BTC: dto.bitcoinDailyAutoLimitAtomic,
+        XMR: dto.moneroDailyAutoLimitAtomic,
+      },
+    };
     await this.upsert('payout.schedule', value);
     await this.audit.record({
       actorId: actor.id,
@@ -154,25 +237,54 @@ export class SettingsService {
   }
 
   async claimScheduledRun(): Promise<{ run: boolean; local: DateTime }> {
-    const schedule = await this.payoutSchedule();
+    const schedule = await this.payoutPolicy();
+    const now = DateTime.now();
+    const local = now.setZone(schedule.timezone);
+    if (!local.isValid) return { run: false, local };
+    let slot: string;
+    if (schedule.mode === PayoutScheduleMode.DAILY) {
+      const [hour, minute] = schedule.dailyTime.split(':').map(Number);
+      const due = local.startOf('day').set({ hour, minute });
+      const day = local.toISODate();
+      if (!day || local < due) return { run: false, local };
+      slot = `daily:${schedule.timezone}:${day}`;
+    } else {
+      const intervalMs = schedule.intervalMinutes * 60_000;
+      const offsetMs = schedule.minuteOffset * 60_000;
+      const index = Math.floor((now.toMillis() - offsetMs) / intervalMs);
+      slot = `interval:${schedule.intervalMinutes}:${schedule.minuteOffset}:${index}`;
+    }
+    const run = await this.claimSlot('payout.schedule.lastRunSlot', slot);
+    return { run, local };
+  }
+
+  async claimOperatorScheduledRun(): Promise<{ run: boolean; local: DateTime }> {
+    const schedule = await this.payoutPolicy();
     const local = DateTime.now().setZone(schedule.timezone);
-    if (!local.isValid || local.toFormat('HH:mm') !== schedule.time) return { run: false, local };
+    if (!local.isValid) return { run: false, local };
+    const [hour, minute] = schedule.dailyTime.split(':').map(Number);
+    const due = local.startOf('day').set({ hour, minute });
     const day = local.toISODate();
-    if (!day) return { run: false, local };
-    const run = await this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('payout.schedule.claim'))`;
-      const previous = await tx.systemSetting.findUnique({
-        where: { key: 'payout.schedule.lastRunDate' },
-      });
-      if (previous?.value === day) return false;
+    if (!day || local < due) return { run: false, local };
+    const run = await this.claimSlot(
+      'operator.payout.schedule.lastRunSlot',
+      `daily:${schedule.timezone}:${day}`,
+    );
+    return { run, local };
+  }
+
+  private async claimSlot(key: string, slot: string): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${key}))`;
+      const previous = await tx.systemSetting.findUnique({ where: { key } });
+      if (previous?.value === slot) return false;
       await tx.systemSetting.upsert({
-        where: { key: 'payout.schedule.lastRunDate' },
-        create: { key: 'payout.schedule.lastRunDate', value: day },
-        update: { value: day },
+        where: { key },
+        create: { key, value: slot },
+        update: { value: slot },
       });
       return true;
     });
-    return { run, local };
   }
 
   private async setting<T>(key: string): Promise<T | null> {

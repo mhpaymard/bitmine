@@ -8,7 +8,9 @@ import {
   DestinationStatus,
   PayoutKind,
   PayoutState,
+  Prisma,
 } from '@prisma/client';
+import { DateTime } from 'luxon';
 import { AlertsService } from '../alerts/alerts.service';
 import { AuditService } from '../audit/audit.service';
 import { AuthService } from '../auth/auth.service';
@@ -20,8 +22,8 @@ import { EventsService } from '../events/events.service';
 import { LedgerService } from '../ledger/ledger.service';
 import { RedisService } from '../redis/redis.service';
 import { CryptoService } from '../security/crypto.service';
-import { OperatorPayoutMode } from '../settings/settings.dto';
-import { SettingsService } from '../settings/settings.service';
+import { NetworkFeePayer, OperatorPayoutMode } from '../settings/settings.dto';
+import { SettingsService, type PayoutPolicySetting } from '../settings/settings.service';
 import { DepositsService } from '../wallets/deposits.service';
 import { WalletsService } from '../wallets/wallets.service';
 import { assertPayoutTransition } from './payout-state';
@@ -32,6 +34,7 @@ const OPEN_PAYOUT_STATES = [
   PayoutState.AUTO_APPROVED,
   PayoutState.SIGNED,
   PayoutState.BROADCAST,
+  PayoutState.FAILED,
 ];
 
 @Injectable()
@@ -70,6 +73,7 @@ export class PayoutsService {
 
   async plan(asset: AssetCode) {
     await this.customers.activateDueDestinations();
+    const policy = await this.settings.payoutPolicy();
     const batch = await this.prisma.$transaction(
       async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`payout-plan:${asset}`}))`;
@@ -81,6 +85,8 @@ export class PayoutsService {
             customer: { status: 'ACTIVE' },
           },
           include: { customer: true },
+          orderBy: { createdAt: 'asc' },
+          take: policy.maxBatchItems,
         });
         const items: Array<{
           customerId: string;
@@ -98,7 +104,12 @@ export class PayoutsService {
             select: { grossAtomic: true },
           });
           const available = balance - reserved.reduce((sum, item) => sum + item.grossAtomic, 0n);
-          if (available >= destination.minPayoutAtomic) {
+          const policyMinimum = BigInt(policy.minimumAtomic[asset]);
+          const minimum =
+            destination.minPayoutAtomic > policyMinimum
+              ? destination.minPayoutAtomic
+              : policyMinimum;
+          if (available >= minimum) {
             items.push({
               customerId: destination.customerId,
               destination: destination.address,
@@ -109,11 +120,7 @@ export class PayoutsService {
         }
         if (!items.length) return null;
         const total = items.reduce((sum, item) => sum + item.grossAtomic, 0n);
-        const autoLimit =
-          asset === AssetCode.BTC
-            ? this.config.get('BITCOIN_DAILY_AUTO_LIMIT_ATOMIC', { infer: true })
-            : this.config.get('MONERO_DAILY_AUTO_LIMIT_ATOMIC', { infer: true });
-        const auto = autoLimit > 0n && total <= autoLimit;
+        const auto = await this.canAutoApprove(tx, asset, total, policy);
         return tx.payoutBatch.create({
           data: {
             asset,
@@ -123,6 +130,11 @@ export class PayoutsService {
             totalGrossAtomic: total,
             totalNetAtomic: total,
             approvalThresholdHit: !auto,
+            policySnapshot: {
+              feePayer: policy.feePayer,
+              maxFeeBps: policy.maxFeeBps,
+              maxBatchItems: policy.maxBatchItems,
+            },
             items: { create: items },
           },
           include: { items: true },
@@ -142,6 +154,7 @@ export class PayoutsService {
 
   async planOperator(asset: AssetCode) {
     const setting = await this.settings.operatorPayout(asset);
+    const policy = await this.settings.payoutPolicy();
     if (setting.mode === OperatorPayoutMode.RETAIN || !setting.address) {
       throw new ConflictException('Operator revenue is configured to remain in treasury');
     }
@@ -158,11 +171,7 @@ export class PayoutsService {
         });
         const available = balance - reserved.reduce((sum, item) => sum + item.grossAtomic, 0n);
         if (available < BigInt(setting.minPayoutAtomic)) return null;
-        const autoLimit =
-          asset === AssetCode.BTC
-            ? this.config.get('BITCOIN_DAILY_AUTO_LIMIT_ATOMIC', { infer: true })
-            : this.config.get('MONERO_DAILY_AUTO_LIMIT_ATOMIC', { infer: true });
-        const auto = autoLimit > 0n && available <= autoLimit;
+        const auto = await this.canAutoApprove(tx, asset, available, policy);
         return tx.payoutBatch.create({
           data: {
             asset,
@@ -172,6 +181,11 @@ export class PayoutsService {
             totalGrossAtomic: available,
             totalNetAtomic: available,
             approvalThresholdHit: !auto,
+            policySnapshot: {
+              feePayer: NetworkFeePayer.CUSTOMER,
+              maxFeeBps: policy.maxFeeBps,
+              maxBatchItems: 1,
+            },
             items: {
               create: {
                 customerId: null,
@@ -297,13 +311,31 @@ export class PayoutsService {
     try {
       if (!batch.signedPayload) {
         assertLock();
+        const currentPolicy = await this.settings.payoutPolicy();
+        const snapshot =
+          batch.policySnapshot && typeof batch.policySnapshot === 'object'
+            ? (batch.policySnapshot as { feePayer?: NetworkFeePayer; maxFeeBps?: number })
+            : {};
+        const feePayer = snapshot.feePayer ?? currentPolicy.feePayer;
+        const maxFeeBps = snapshot.maxFeeBps ?? currentPolicy.maxFeeBps;
+        const operatorPaysCustomerFee =
+          batch.kind === PayoutKind.CUSTOMER && feePayer === NetworkFeePayer.OPERATOR;
         const prepared = await wallet.preparePayout(
           batch.items.map((item) => ({
             id: item.id,
             address: item.destination,
             grossAtomic: item.grossAtomic,
           })),
+          { deductFeeFromOutputs: !operatorPaysCustomerFee },
         );
+        if (
+          batch.kind === PayoutKind.CUSTOMER &&
+          prepared.feeAtomic * 10_000n > batch.totalGrossAtomic * BigInt(maxFeeBps)
+        ) {
+          throw new Error(
+            `Payout network fee exceeds configured limit of ${maxFeeBps} basis points`,
+          );
+        }
         assertLock();
         assertPayoutTransition(batch.state, PayoutState.SIGNED);
         await this.prisma.$transaction(async (tx) => {
@@ -364,6 +396,13 @@ export class PayoutsService {
                 customerId: item.customerId,
                 grossAtomic: item.grossAtomic,
                 feeAtomic: item.allocatedFeeAtomic,
+                operatorPaysFee:
+                  executableBatch.kind === PayoutKind.CUSTOMER &&
+                  ((executableBatch.policySnapshot as { feePayer?: NetworkFeePayer } | null)
+                    ?.feePayer ??
+                    (item.netAtomic < item.grossAtomic
+                      ? NetworkFeePayer.CUSTOMER
+                      : NetworkFeePayer.OPERATOR)) === NetworkFeePayer.OPERATOR,
               })
             : await this.ledger.postOperatorPayout(tx, {
                 batchId: executableBatch.id,
@@ -447,18 +486,25 @@ export class PayoutsService {
   @Interval(60_000)
   async scheduled(): Promise<void> {
     if (this.running) return;
-    const claim = await this.settings.claimScheduledRun().catch(() => null);
-    if (!claim?.run) return;
+    const [claim, operatorClaim] = await Promise.all([
+      this.settings.claimScheduledRun().catch(() => null),
+      this.settings.claimOperatorScheduledRun().catch(() => null),
+    ]);
+    if (!claim?.run && !operatorClaim?.run) return;
     this.running = true;
     try {
       await this.deposits.scanAll();
       for (const asset of [AssetCode.BTC, AssetCode.XMR]) {
-        const batch = await this.plan(asset);
-        if (batch?.state === PayoutState.AUTO_APPROVED) await this.execute(batch.id);
+        if (claim?.run) {
+          const batch = await this.plan(asset);
+          if (batch?.state === PayoutState.AUTO_APPROVED) await this.execute(batch.id);
+        }
         const operator = await this.settings.operatorPayout(asset);
         const due =
-          operator.mode === OperatorPayoutMode.DAILY ||
-          (operator.mode === OperatorPayoutMode.WEEKLY && operator.weekday === claim.local.weekday);
+          operatorClaim?.run &&
+          (operator.mode === OperatorPayoutMode.DAILY ||
+            (operator.mode === OperatorPayoutMode.WEEKLY &&
+              operator.weekday === operatorClaim.local.weekday));
         if (due) {
           const operatorBatch = await this.planOperator(asset);
           if (operatorBatch?.state === PayoutState.AUTO_APPROVED)
@@ -485,5 +531,28 @@ export class PayoutsService {
   private safeBatch<T extends { signedPayload: string | null }>(batch: T) {
     const { signedPayload, ...safe } = batch;
     return { ...safe, hasSignedPayload: Boolean(signedPayload) };
+  }
+
+  private async canAutoApprove(
+    tx: Prisma.TransactionClient,
+    asset: AssetCode,
+    amount: bigint,
+    policy: PayoutPolicySetting,
+  ): Promise<boolean> {
+    const limit = BigInt(policy.dailyAutoLimitAtomic[asset]);
+    if (limit <= 0n || amount > limit) return false;
+    const local = DateTime.now().setZone(policy.timezone);
+    const start = local.startOf('day').toUTC().toJSDate();
+    const end = local.plus({ days: 1 }).startOf('day').toUTC().toJSDate();
+    const used = await tx.payoutBatch.aggregate({
+      where: {
+        asset,
+        approvalThresholdHit: false,
+        createdAt: { gte: start, lt: end },
+        state: { not: PayoutState.CANCELLED },
+      },
+      _sum: { totalGrossAtomic: true },
+    });
+    return (used._sum.totalGrossAtomic ?? 0n) + amount <= limit;
   }
 }

@@ -15,6 +15,7 @@ import { GatewayModule } from './gateway/gateway.module';
 import { HealthModule } from './health/health.module';
 import { LedgerModule } from './ledger/ledger.module';
 import { PayoutsModule } from './payouts/payouts.module';
+import { PublicPortalModule } from './public-portal/public-portal.module';
 import { RedisModule } from './redis/redis.module';
 import { SecurityModule } from './security/security.module';
 import { SettingsModule } from './settings/settings.module';
@@ -38,6 +39,7 @@ import { WalletsModule } from './wallets/wallets.module';
             'req.headers.authorization',
             'req.headers.cookie',
             'req.body.password',
+            'req.body.accessCode',
             'req.body.totpCode',
             'res.headers.set-cookie',
           ],
@@ -61,6 +63,7 @@ import { WalletsModule } from './wallets/wallets.module';
     WalletsModule,
     SettingsModule,
     PayoutsModule,
+    PublicPortalModule,
     StatsModule,
     HealthModule,
   ],

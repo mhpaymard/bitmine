@@ -19,6 +19,10 @@
     "test": "pnpm -r test",
     "test:coverage": "pnpm -r test:coverage",
     "test:load": "pnpm --filter @mitm/server test:load",
+    "test:e2e:local-mining": "pnpm --filter @mitm/server test:e2e:local-mining",
+    "test:e2e:local-mining:bitcoin-cpu": "pnpm --filter @mitm/server test:e2e:local-mining:bitcoin-cpu",
+    "test:e2e:local-mining:bitcoin-public": "pnpm --filter @mitm/server test:e2e:local-mining:bitcoin-public",
+    "test:e2e:local-mining:xmrig": "pnpm --filter @mitm/server test:e2e:local-mining:xmrig",
     "db:generate": "pnpm --filter @mitm/server db:generate",
     "db:migrate": "pnpm --filter @mitm/server db:migrate",
     "db:deploy": "pnpm --filter @mitm/server db:deploy",
@@ -39,7 +43,13 @@
     "typescript-eslint": "^8.54.0"
   },
   "pnpm": {
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "@fastify/static": ">=10.1.1"
+      }
+    },
     "overrides": {
+      "@fastify/static": "10.1.3",
       "deepmerge-ts@7.1.5": "8.0.0",
       "fast-uri@3.1.5": "3.1.6",
       "fast-uri@4.1.2": "4.1.3",

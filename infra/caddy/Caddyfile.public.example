@@ -11,6 +11,12 @@ gateway.example.com {
 		Referrer-Policy "same-origin"
 		-Server
 	}
+	@portal path /portal /portal/* /assets/* /api/v1/public/portal /api/v1/public/portal/*
+	handle @portal {
+		reverse_proxy host.docker.internal:3000 {
+			flush_interval -1
+		}
+	}
 	@private remote_ip 203.0.113.10/32
 	handle @private {
 		reverse_proxy host.docker.internal:3000 {

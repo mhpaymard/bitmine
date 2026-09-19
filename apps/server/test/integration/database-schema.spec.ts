@@ -1,5 +1,15 @@
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { loadEnvFile } from 'node:process';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+for (const environmentFile of [
+  resolve(process.cwd(), '../../.env'),
+  resolve(process.cwd(), '.env'),
+]) {
+  if (existsSync(environmentFile)) loadEnvFile(environmentFile);
+}
 
 const databaseUrl = process.env.DATABASE_URL;
 const describeDatabase = databaseUrl ? describe : describe.skip;
@@ -57,5 +67,18 @@ describeDatabase('deployed PostgreSQL schema', () => {
 
     expect(partition.rows[0]?.partition_name).toBeTruthy();
     expect(accountColumn.rows[0]).toEqual({ is_nullable: 'NO', data_type: 'character varying' });
+  });
+
+  it('stores customer portal secrets only as hashed credentials', async () => {
+    const columns = await pool.query<{ column_name: string }>(`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = current_schema()
+        AND table_name = 'CustomerPortalCredential'
+      ORDER BY column_name
+    `);
+
+    expect(columns.rows.map((row) => row.column_name)).toContain('tokenHash');
+    expect(columns.rows.map((row) => row.column_name)).not.toContain('accessCode');
   });
 });

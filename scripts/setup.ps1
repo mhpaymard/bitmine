@@ -1,7 +1,14 @@
 [CmdletBinding()]
 param(
   [switch]$StartCore,
-  [switch]$SkipInstall
+  [switch]$SkipInstall,
+  [ValidateRange(1, 65535)][int]$PostgresHostPort = 5432,
+  [string]$AdminOrigin = 'http://127.0.0.1:5173',
+  [string]$AdminBindIp = '0.0.0.0',
+  [string]$AdminAllowlist = '192.168.0.0/16',
+  [string]$BackupAgeRecipient = '',
+  [switch]$ServeAdminStatic,
+  [switch]$EnableGatewayTls
 )
 
 $ErrorActionPreference = 'Stop'
@@ -58,11 +65,25 @@ $appEnvPath = Join-Path $projectRoot '.env'
 if (-not (Test-Path -LiteralPath $appEnvPath)) {
   $content = Get-Content -LiteralPath (Join-Path $projectRoot '.env.example') -Raw
   $content = $content.Replace('mining_dev_password', $postgresPassword).Replace('redis_dev_password', $redisPassword)
+  $content = $content.Replace('127.0.0.1:5432', "127.0.0.1:$PostgresHostPort")
+  $content = $content.Replace('ADMIN_ORIGIN=http://127.0.0.1:5173', "ADMIN_ORIGIN=$AdminOrigin")
+  if ($ServeAdminStatic) { $content = $content.Replace('SERVE_ADMIN_STATIC=false', 'SERVE_ADMIN_STATIC=true') }
+  if ($EnableGatewayTls) {
+    $content = $content.Replace('BITCOIN_GATEWAY_TLS_ENABLED=false', 'BITCOIN_GATEWAY_TLS_ENABLED=true')
+    $content = $content.Replace('MONERO_GATEWAY_TLS_ENABLED=false', 'MONERO_GATEWAY_TLS_ENABLED=true')
+  }
   [System.IO.File]::WriteAllText($appEnvPath, $content, $utf8NoBom)
 }
 $infraEnvPath = Join-Path $projectRoot '.env.infrastructure'
 if (-not (Test-Path -LiteralPath $infraEnvPath)) {
-  Copy-Item -LiteralPath (Join-Path $projectRoot '.env.infrastructure.example') -Destination $infraEnvPath
+  $content = Get-Content -LiteralPath (Join-Path $projectRoot '.env.infrastructure.example') -Raw
+  $content = $content.Replace('POSTGRES_HOST_PORT=5432', "POSTGRES_HOST_PORT=$PostgresHostPort")
+  $content = $content.Replace('ADMIN_BIND_IP=0.0.0.0', "ADMIN_BIND_IP=$AdminBindIp")
+  $content = $content.Replace('ADMIN_ALLOWLIST=192.168.0.0/16', "ADMIN_ALLOWLIST=$AdminAllowlist")
+  if ($BackupAgeRecipient) {
+    $content = $content.Replace('BACKUP_AGE_RECIPIENT=', "BACKUP_AGE_RECIPIENT=$BackupAgeRecipient")
+  }
+  [System.IO.File]::WriteAllText($infraEnvPath, $content, $utf8NoBom)
 }
 
 Push-Location $projectRoot

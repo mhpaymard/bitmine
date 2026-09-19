@@ -5,6 +5,7 @@ import {
   JournalType,
   LedgerAccountType,
   LedgerDirection,
+  PayoutState,
   ShareStatus,
 } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
@@ -18,6 +19,15 @@ interface EntryInput {
   direction: LedgerDirection;
   amountAtomic: bigint;
 }
+
+const OPEN_PAYOUT_STATES = [
+  PayoutState.PLANNED,
+  PayoutState.APPROVAL_REQUIRED,
+  PayoutState.AUTO_APPROVED,
+  PayoutState.SIGNED,
+  PayoutState.BROADCAST,
+  PayoutState.FAILED,
+];
 
 @Injectable()
 export class LedgerService {
@@ -311,6 +321,7 @@ export class LedgerService {
       customerId: string;
       grossAtomic: bigint;
       feeAtomic: bigint;
+      operatorPaysFee?: boolean;
     },
   ) {
     const accounts = await this.ensureSystemAccounts(input.asset, tx);
@@ -334,7 +345,7 @@ export class LedgerService {
           direction: LedgerDirection.CREDIT,
           amountAtomic: input.grossAtomic,
         },
-        ...(input.feeAtomic > 0n
+        ...(input.feeAtomic > 0n && input.operatorPaysFee
           ? [
               {
                 accountId: accounts.get('network-fee')!,
@@ -342,12 +353,25 @@ export class LedgerService {
                 amountAtomic: input.feeAtomic,
               },
               {
-                accountId: accounts.get('network-fee-recovery')!,
+                accountId: accounts.get('treasury')!,
                 direction: LedgerDirection.CREDIT,
                 amountAtomic: input.feeAtomic,
               },
             ]
-          : []),
+          : input.feeAtomic > 0n
+            ? [
+                {
+                  accountId: accounts.get('network-fee')!,
+                  direction: LedgerDirection.DEBIT,
+                  amountAtomic: input.feeAtomic,
+                },
+                {
+                  accountId: accounts.get('network-fee-recovery')!,
+                  direction: LedgerDirection.CREDIT,
+                  amountAtomic: input.feeAtomic,
+                },
+              ]
+            : []),
       ],
     });
   }
@@ -399,6 +423,62 @@ export class LedgerService {
       orderBy: { occurredAt: 'desc' },
       include: { entries: { include: { account: true } } },
     });
+  }
+
+  async customerBalances(asset?: AssetCode) {
+    const assets = asset ? [asset] : [AssetCode.BTC, AssetCode.XMR];
+    const customers = await this.prisma.customer.findMany({
+      where: { status: 'ACTIVE' },
+      select: { id: true, slug: true, displayName: true },
+      orderBy: { displayName: 'asc' },
+    });
+    const result: Array<{
+      customer: (typeof customers)[number];
+      asset: AssetCode;
+      confirmedAtomic: string;
+      reservedAtomic: string;
+      payableAtomic: string;
+      pendingAcceptedShares: string;
+      pendingAcceptedWork: string;
+    }> = [];
+    for (const currentAsset of assets) {
+      const [reserved, pending] = await Promise.all([
+        this.prisma.payoutItem.groupBy({
+          by: ['customerId'],
+          where: {
+            customerId: { not: null },
+            batch: { asset: currentAsset, state: { in: [...OPEN_PAYOUT_STATES] } },
+          },
+          _sum: { grossAtomic: true },
+        }),
+        this.prisma.shareEvent.groupBy({
+          by: ['customerId'],
+          where: {
+            asset: currentAsset,
+            status: ShareStatus.ACCEPTED,
+            allocationBatchId: null,
+          },
+          _count: { _all: true },
+          _sum: { normalizedWork: true },
+        }),
+      ]);
+      for (const customer of customers) {
+        const confirmed = await this.customerBalance(customer.id, currentAsset);
+        const reservedAtomic =
+          reserved.find((item) => item.customerId === customer.id)?._sum.grossAtomic ?? 0n;
+        const pendingShares = pending.find((item) => item.customerId === customer.id);
+        result.push({
+          customer,
+          asset: currentAsset,
+          confirmedAtomic: confirmed.toString(),
+          reservedAtomic: reservedAtomic.toString(),
+          payableAtomic: (confirmed - reservedAtomic).toString(),
+          pendingAcceptedShares: String(pendingShares?._count._all ?? 0),
+          pendingAcceptedWork: pendingShares?._sum.normalizedWork?.toString() ?? '0',
+        });
+      }
+    }
+    return result;
   }
 
   async trialBalance(asset: AssetCode) {

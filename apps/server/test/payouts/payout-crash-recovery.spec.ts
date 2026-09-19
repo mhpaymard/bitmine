@@ -1,4 +1,4 @@
-import { AssetCode, PayoutState } from '@prisma/client';
+import { AssetCode, PayoutKind, PayoutState } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
 import type { AlertsService } from '../../src/alerts/alerts.service';
 import type { AuditService } from '../../src/audit/audit.service';
@@ -12,11 +12,24 @@ import { PayoutsService } from '../../src/payouts/payouts.service';
 import type { RedisService } from '../../src/redis/redis.service';
 import type { CryptoService } from '../../src/security/crypto.service';
 import type { SettingsService } from '../../src/settings/settings.service';
+import { NetworkFeePayer, PayoutScheduleMode } from '../../src/settings/settings.dto';
 import type { DepositsService } from '../../src/wallets/deposits.service';
 import type { WalletsService } from '../../src/wallets/wallets.service';
 import type { ConfigService } from '@nestjs/config';
 
 describe('payout crash recovery', () => {
+  const payoutPolicy = {
+    mode: PayoutScheduleMode.DAILY,
+    intervalMinutes: 60,
+    minuteOffset: 5,
+    dailyTime: '00:15',
+    timezone: 'Asia/Tehran',
+    feePayer: NetworkFeePayer.OPERATOR,
+    maxFeeBps: 200,
+    maxBatchItems: 500,
+    minimumAtomic: { BTC: '100', XMR: '100' },
+    dailyAutoLimitAtomic: { BTC: '0', XMR: '0' },
+  };
   it('never exposes encrypted signed payloads through the list API', async () => {
     const prisma = {
       payoutBatch: {
@@ -107,7 +120,10 @@ describe('payout crash recovery', () => {
         ]),
       },
       payoutItem: { findMany: vi.fn().mockResolvedValue([]) },
-      payoutBatch: { create: vi.fn().mockResolvedValue(created) },
+      payoutBatch: {
+        aggregate: vi.fn().mockResolvedValue({ _sum: { totalGrossAtomic: 600n } }),
+        create: vi.fn().mockResolvedValue(created),
+      },
     };
     const prisma = {
       $transaction: vi.fn((callback: (client: typeof tx) => unknown) => callback(tx)),
@@ -128,7 +144,12 @@ describe('payout crash recovery', () => {
       config,
       customers,
       ledger,
-      {} as SettingsService,
+      {
+        payoutPolicy: vi.fn().mockResolvedValue({
+          ...payoutPolicy,
+          dailyAutoLimitAtomic: { BTC: '1500', XMR: '0' },
+        }),
+      } as unknown as SettingsService,
       {} as WalletsService,
       {} as DepositsService,
       {} as AuthService,
@@ -141,7 +162,13 @@ describe('payout crash recovery', () => {
 
     await expect(service.plan(AssetCode.BTC)).resolves.toEqual(created);
     expect(tx.$executeRaw).toHaveBeenCalledOnce();
+    expect(tx.payoutBatch.aggregate).toHaveBeenCalledOnce();
     expect(tx.payoutBatch.create).toHaveBeenCalledOnce();
+    const createInput = tx.payoutBatch.create.mock.calls[0]?.[0] as {
+      data: { state: PayoutState; approvalThresholdHit: boolean };
+    };
+    expect(createInput.data.state).toBe(PayoutState.APPROVAL_REQUIRED);
+    expect(createInput.data.approvalThresholdHit).toBe(true);
   });
 
   it('does not rebroadcast a signed transaction already known by the wallet', async () => {
@@ -234,7 +261,10 @@ describe('payout crash recovery', () => {
     const initialBatch = {
       id: 'batch-new',
       asset: AssetCode.BTC,
+      kind: PayoutKind.CUSTOMER,
       state: PayoutState.AUTO_APPROVED,
+      totalGrossAtomic: 1_000n,
+      policySnapshot: { feePayer: NetworkFeePayer.OPERATOR, maxFeeBps: 200 },
       signedPayload: null,
       transactionIds: [] as string[],
       items: [item],
@@ -244,7 +274,7 @@ describe('payout crash recovery', () => {
       state: PayoutState.SIGNED,
       signedPayload: 'v1.encrypted-payload',
       transactionIds: ['prepared-txid'],
-      items: [{ ...item, allocatedFeeAtomic: 10n, netAtomic: 990n }],
+      items: [{ ...item, allocatedFeeAtomic: 10n, netAtomic: 1_000n }],
     };
     const broadcastBatch = { ...signedBatch, state: PayoutState.BROADCAST };
     const updateBatch = vi
@@ -273,7 +303,7 @@ describe('payout crash recovery', () => {
         signedPayload: 'wallet-secret-payload',
         transactionIds: ['prepared-txid'],
         feeAtomic: 10n,
-        items: [{ id: item.id, allocatedFeeAtomic: 10n, netAtomic: 990n }],
+        items: [{ id: item.id, allocatedFeeAtomic: 10n, netAtomic: 1_000n }],
       }),
       transactionKnown: vi.fn().mockResolvedValue(false),
       broadcast: vi.fn().mockResolvedValue(['broadcast-txid']),
@@ -289,15 +319,14 @@ describe('payout crash recovery', () => {
         eval: vi.fn().mockResolvedValue(1),
       },
     } as unknown as RedisService;
-    const ledger = {
-      postPayout: vi.fn().mockResolvedValue({ id: 'journal-new' }),
-    } as unknown as LedgerService;
+    const postPayout = vi.fn().mockResolvedValue({ id: 'journal-new' });
+    const ledger = { postPayout } as unknown as LedgerService;
     const service = new PayoutsService(
       prisma,
       {} as ConfigService<Environment, true>,
       {} as CustomersService,
       ledger,
-      {} as SettingsService,
+      { payoutPolicy: vi.fn().mockResolvedValue(payoutPolicy) } as unknown as SettingsService,
       { forAsset: () => wallet } as unknown as WalletsService,
       {} as DepositsService,
       {} as AuthService,
@@ -320,5 +349,13 @@ describe('payout crash recovery', () => {
       'payout:batch-new:signed-payload',
     );
     expect(wallet.broadcast).toHaveBeenCalledWith('wallet-secret-payload');
+    expect(wallet.preparePayout).toHaveBeenCalledWith(
+      [{ id: item.id, address: item.destination, grossAtomic: item.grossAtomic }],
+      { deductFeeFromOutputs: false },
+    );
+    expect(postPayout).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ operatorPaysFee: true }),
+    );
   });
 });

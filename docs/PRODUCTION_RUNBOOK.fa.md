@@ -2,6 +2,8 @@
 
 این راهنما برای Ubuntu Server 24.04 LTS روی معماری `amd64/x86_64` نوشته شده است. ایمیج فعلی Monero فقط `amd64` را می‌پذیرد. فرمان‌ها را ابتدا روی یک سرور staging اجرا کنید و فقط بعد از تست عملی miner و restore به mainnet بروید.
 
+اگر reverse proxy مورد نظر Nginx است، به‌جای مراحل Caddy همین فایل از [راهنمای Production با Nginx](PRODUCTION_NGINX.fa.md) استفاده کنید؛ آن راهنما تداخل HTTPS و BTC Stratum روی 443، صدور/تمدید certificate، envها و اسکریپت update را پوشش می‌دهد.
+
 در مثال‌ها دامنه `mine.example.com` و ایمیل `ops@example.com` است؛ هر دو را با مقدار واقعی عوض کنید. رمز، seed، recovery code یا کلید خصوصی را در چت، ticket، Git، shell history یا Loki قرار ندهید.
 
 ## ۱. خروجی‌ای که به مشتری می‌دهیم
@@ -22,17 +24,17 @@ BTC TLS روی 443 است. XMR TLS به‌طور پیش‌فرض روی 4443 ق�
 
 ## ۲. معماری و پورت‌ها
 
-| پورت میزبان                    | مصرف             | دسترسی مجاز                              |
-| ------------------------------ | ---------------- | ---------------------------------------- |
-| `22/tcp`                       | SSH              | فقط IP مدیریت یا VPN                     |
-| `80/tcp`                       | ACME HTTP-01     | عمومی، فقط برای صدور/تمدید certificate   |
-| `443/tcp`                      | BTC Stratum TLS  | minerها                                  |
-| `4443/tcp`                     | XMR TLS          | فقط اگر XMR ارائه می‌شود                 |
-| `8443/tcp+udp`                 | پنل HTTPS Caddy  | فقط VPN/IP مدیریت؛ هرگز عمومی آزاد نباشد |
-| `3000`                         | API داخلی        | فقط loopback                             |
-| `5432`, `6379`                 | PostgreSQL/Redis | فقط loopback                             |
-| `18443`, `38081`, `38088`      | wallet/node RPC  | فقط loopback                             |
-| `3001`, `9090`, `9093`, `3100` | monitoring       | فقط loopback/VPN                         |
+| پورت میزبان                    | مصرف             | دسترسی مجاز                                |
+| ------------------------------ | ---------------- | ------------------------------------------ |
+| `22/tcp`                       | SSH              | فقط IP مدیریت یا VPN                       |
+| `80/tcp`                       | ACME HTTP-01     | عمومی، فقط برای صدور/تمدید certificate     |
+| `443/tcp`                      | BTC Stratum TLS  | minerها                                    |
+| `4443/tcp`                     | XMR TLS          | فقط اگر XMR ارائه می‌شود                   |
+| `8443/tcp+udp`                 | HTTPS Caddy      | `/portal` عمومی؛ پنل/API مدیریت فقط VPN/IP |
+| `3000`                         | API داخلی        | فقط loopback                               |
+| `5432`, `6379`                 | PostgreSQL/Redis | فقط loopback                               |
+| `18443`, `38081`, `38088`      | wallet/node RPC  | فقط loopback                               |
+| `3001`, `9090`, `9093`, `3100` | monitoring       | فقط loopback/VPN                           |
 
 حداقل پیشنهادی: 8 vCPU، 16 GiB RAM و 250 GiB SSD آزاد. برای رشد chain، log و backup حاشیه ظرفیت جدا در نظر بگیرید. ساعت سرور باید با NTP همگام باشد.
 
@@ -57,7 +59,7 @@ sudo timedatectl set-timezone Asia/Tehran
 sudo systemctl enable --now systemd-timesyncd
 ```
 
-قواعد cloud firewall/security group را قبل از قواعد سیستم‌عامل تنظیم کنید: 443 و در صورت نیاز 4443 عمومی؛ 22 و 8443 فقط IP/VPN مدیریت؛ هیچ RPC/DB/Redis/monitoring عمومی نباشد. سپس نمونه UFW:
+قواعد cloud firewall/security group را قبل از قواعد سیستم‌عامل تنظیم کنید: 443 و در صورت نیاز 4443 عمومی؛ 22 فقط IP/VPN مدیریت؛ هیچ RPC/DB/Redis/monitoring عمومی نباشد. اگر پرتال مشتری را از همین Caddy ارائه می‌کنید، 8443 را عمومی باز کنید؛ Caddy فقط `/portal`، assetهای رابط و `/api/v1/public/portal/*` را عمومی می‌کند و سایر مسیرها همچنان با `ADMIN_ALLOWLIST` محافظت می‌شوند. برای URL استاندارد HTTPS، یک IP یا web edge جدا روی 443 بهتر است، چون 443 این میزبان در اختیار BTC Stratum است. سپس نمونه UFW:
 
 ```bash
 sudo ufw default deny incoming
@@ -66,11 +68,14 @@ sudo ufw allow from YOUR_ADMIN_PUBLIC_IP to any port 22 proto tcp
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
 sudo ufw allow 4443/tcp
+sudo ufw allow 8443/tcp
 sudo ufw enable
 sudo ufw status verbose
 ```
 
 `YOUR_ADMIN_PUBLIC_IP` را دقیق جایگزین کنید. Docker ممکن است قواعد UFW را دور بزند؛ به همین دلیل `ADMIN_BIND_IP` در این راهنما loopback است. اگر 8443 را روی IP VPN bind می‌کنید، علاوه بر cloud firewall قواعد `DOCKER-USER` را نیز بررسی کنید.
+
+اگر پرتال روی همین 8443 عمومی است، `ADMIN_BIND_IP=0.0.0.0` لازم می‌شود؛ در این حالت allowlist خود Caddy و قواعد `DOCKER-USER` را برای مسیرهای مدیریت با یک IP خارج از allowlist نیز آزمایش کنید. صفحه `/portal` باید 200 و `/` باید 403 برگرداند.
 
 ## ۴. نصب Docker رسمی و Node 24
 
@@ -397,19 +402,18 @@ curl -fsS http://127.0.0.1:38081/get_info | jq '{synchronized,height,target_heig
 ```bash
 sudo -u mining-gateway pnpm db:deploy
 sudo -u mining-gateway pnpm build
-umask 077
-openssl rand -base64 36 | tr '+/' '-_' | tr -d '=\n' > /tmp/mining-owner-password
+sudo -u mining-gateway openssl rand -hex -out secrets/bootstrap-admin-password.txt 36
 read -rp 'Owner email: ' OWNER_EMAIL
 printf 'Owner password (copy it into the password manager now): '
-cat /tmp/mining-owner-password
+sudo -u mining-gateway cat secrets/bootstrap-admin-password.txt
 echo
 read -rp 'After saving it, press Enter to continue: ' _unused
 sudo -u mining-gateway env \
   BOOTSTRAP_ADMIN_EMAIL="$OWNER_EMAIL" \
-  BOOTSTRAP_ADMIN_PASSWORD="$(</tmp/mining-owner-password)" \
+  BOOTSTRAP_ADMIN_PASSWORD_FILE='/opt/mining-gateway/secrets/bootstrap-admin-password.txt' \
   BOOTSTRAP_ADMIN_NAME='Owner' \
   pnpm bootstrap:admin
-sudo shred -u /tmp/mining-owner-password
+sudo rm -f secrets/bootstrap-admin-password.txt
 unset OWNER_EMAIL _unused
 ```
 
@@ -495,6 +499,22 @@ sudo ls -lh backups/
 (cd backups && sha256sum -c postgres-*.dump.age.sha256)
 ```
 
+وجود فایل و checksum به‌تنهایی کافی نیست؛ پیش از هر انتشار و سپس به‌صورت دوره‌ای باید restore واقعی روی دیتابیس موقت انجام شود. اسکریپت زیر روی دیتابیس از قبل موجود overwrite نمی‌کند و دیتابیس موقت خودش را در پایان حذف می‌کند (نام آخرین فایل را جایگزین کنید):
+
+```bash
+docker run --rm \
+  --network mining-gateway_backend \
+  -v "$PWD/backups:/backups:ro" \
+  -v "$PWD/secrets:/keys:ro" \
+  -v "$PWD/scripts:/project-scripts:ro" \
+  -e BACKUP_FILE=postgres-YYYYMMDDTHHMMSSZ.dump.age \
+  --entrypoint /bin/sh \
+  mining-gateway-postgres-backup \
+  /project-scripts/verify-backup-restore.sh
+```
+
+نام network و image را در صورت تفاوت deployment اصلاح کنید. کلید خصوصی `age` را فقط برای مدت تست از محل امن و read-only در دسترس کانتینر قرار دهید و سپس از سرور حذف کنید.
+
 ماهانه روی میزبان جدا:
 
 ```bash
@@ -510,6 +530,10 @@ dropdb mining_gateway_restore_check
 ## ۱۹. فعال‌کردن payout mainnet
 
 `ENABLE_MAINNET_PAYOUTS=false` را تا تکمیل `docs/MAINNET_CHECKLIST.fa.md` تغییر ندهید. ابتدا deposit کوچک واقعی، allocation، approval با TOTP، signing، broadcast، confirmation و crash recovery را با مبلغ ناچیز end-to-end آزمایش کنید. سقف خودکار پیش‌فرض صفر است و بهتر است در شروع صفر بماند. hot wallet فقط float محدود عملیات را نگه دارد.
+
+در پنل Settings، policy مشتری را ابتدا روی `DAILY` نگه دارید. `INTERVAL=60` فقط فاصله تلاش برای ساخت batch را ساعتی می‌کند و نباید با محاسبه سود قطعی اشتباه شود: تا پول upstream واقعاً دریافت و تأیید نشده، pending work بدهی قابل برداشت نیست. `dailyAutoLimitAtomic` سقف تجمعی روز محلی است. برای برداشت رایگان مشتری `feePayer=OPERATOR`، حداقل‌های معقول، `maxFeeBps` و `maxBatchItems` را بر اساس float و شرایط شبکه تعیین کنید. تغییر policy روی batchهای از قبل ساخته‌شده اثر ندارد، چون snapshot policy همراه batch ذخیره می‌شود.
+
+پس از soak می‌توانید برای چرخه ۴ یا ۶ ساعته، حالت `INTERVAL` را روی `240` یا `360` بگذارید. این چرخه فقط تلاش برای ساخت batch است؛ minimum، موجودی تأییدشده، cooling مقصد، سقف خودکار و کنترل fee همچنان اعمال می‌شوند. پیش از عمومی‌کردن پرتال، برای هر customer از صفحه Customers یک access code یک‌بارنمایش بسازید، ورود و تغییر مقصد را از یک IP خارج شبکه مدیریت تست کنید و مطمئن شوید `/` و `/api/v1/settings` از همان IP پاسخ 403 می‌دهند.
 
 پس از تأیید دو نفره checklist:
 
@@ -527,6 +551,25 @@ sudo systemctl status --no-pager mining-gateway.service
 - برای update ابتدا backup و restore check، سپس release جدید در staging، preflight و در نهایت maintenance window انجام دهید.
 - migration رو به جلو است؛ rollback کد بدون بررسی سازگاری schema ممنوع است. snapshot و dump قبل از migration بگیرید.
 - هرگز `docker compose down -v` روی production اجرا نکنید؛ `-v` wallet، chain، DB و monitoring volumes را حذف می‌کند.
+
+## ۲۱. اگر secret قبلاً وارد Git شده است
+
+حذف فایل در commit جدید کافی نیست؛ همهٔ passwordها، seedها، TLS private key، age identity و backupهایی که در تاریخ repository بوده‌اند compromised محسوب می‌شوند. ابتدا سرویس‌های درگیر را با credential تازه rotate کنید، wallet دارای ارزش را به wallet/seed کاملاً جدید منتقل کنید، certificate را revoke/reissue کنید و sessionها را invalidate کنید. سپس در یک clone آینه‌ای و maintenance window تاریخ را با `git-filter-repo` پاک کنید:
+
+```bash
+git clone --mirror YOUR_REPOSITORY_URL mining-gateway-clean.git
+cd mining-gateway-clean.git
+git filter-repo --invert-paths \
+  --path .env \
+  --path .env.infrastructure \
+  --path secrets \
+  --path backups \
+  --path logs
+git fsck --full
+git push --force --mirror
+```
+
+قبل از force-push از remote backup مدیریتی بگیرید و با همهٔ توسعه‌دهندگان هماهنگ کنید؛ همه cloneهای قدیمی باید حذف و از نو clone شوند. secret rotation باید **قبل** از rewrite انجام شود، چون clone، fork، CI cache و artifact قبلی ممکن است باقی بماند. در تنظیمات hosting نیز cached artifacts، Actions logs و forkها را بررسی و access tokenهای مرتبط را revoke کنید. preflight این پروژه هر فایل حساس trackedشده را fail می‌کند.
 
 فرمان‌های روزمره:
 

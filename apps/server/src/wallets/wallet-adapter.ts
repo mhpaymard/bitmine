@@ -24,12 +24,19 @@ export interface PreparedPayout {
   items: Array<PayoutCandidate & { allocatedFeeAtomic: bigint; netAtomic: bigint }>;
 }
 
+export interface PayoutPreparationOptions {
+  deductFeeFromOutputs: boolean;
+}
+
 export interface WalletAdapter {
   readonly asset: AssetCode;
   createReceiveAddress(label: string): Promise<string>;
   validateAddress(address: string): Promise<boolean>;
   scanReceipts(addresses: string[]): Promise<WalletReceipt[]>;
-  preparePayout(items: PayoutCandidate[]): Promise<PreparedPayout>;
+  preparePayout(
+    items: PayoutCandidate[],
+    options?: PayoutPreparationOptions,
+  ): Promise<PreparedPayout>;
   broadcast(signedPayload: string): Promise<string[]>;
   transactionKnown(txid: string): Promise<boolean>;
   transactionConfirmations(txid: string): Promise<number>;

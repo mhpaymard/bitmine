@@ -21,6 +21,16 @@ interface Journal {
   }>;
 }
 
+interface CustomerBalance {
+  customer: { id: string; slug: string; displayName: string };
+  asset: 'BTC' | 'XMR';
+  confirmedAtomic: string;
+  reservedAtomic: string;
+  payableAtomic: string;
+  pendingAcceptedShares: string;
+  pendingAcceptedWork: string;
+}
+
 export function LedgerPage() {
   const { t } = useTranslation();
   const [asset, setAsset] = useState('');
@@ -28,8 +38,22 @@ export function LedgerPage() {
     queryKey: ['ledger', asset],
     queryFn: () => api<Journal[]>(`/api/v1/ledger/transactions${asset ? `?asset=${asset}` : ''}`),
   });
-  if (query.isLoading) return <Loading />;
-  if (query.error) return <ErrorBox error={query.error} retry={() => void query.refetch()} />;
+  const balances = useQuery({
+    queryKey: ['customer-balances', asset],
+    queryFn: () =>
+      api<CustomerBalance[]>(`/api/v1/ledger/customer-balances${asset ? `?asset=${asset}` : ''}`),
+  });
+  if (query.isLoading || balances.isLoading) return <Loading />;
+  if (query.error || balances.error)
+    return (
+      <ErrorBox
+        error={query.error ?? balances.error}
+        retry={() => {
+          void query.refetch();
+          void balances.refetch();
+        }}
+      />
+    );
   return (
     <>
       <PageHeader
@@ -49,6 +73,53 @@ export function LedgerPage() {
           </div>
         }
       />
+      <Card>
+        <div className="section-heading">
+          <div>
+            <h2>{t('customerBalances')}</h2>
+            <p>{t('customerBalancesHelp')}</p>
+          </div>
+        </div>
+        {balances.data?.length ? (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>{t('customers')}</th>
+                  <th>{t('asset')}</th>
+                  <th>{t('confirmedBalance')}</th>
+                  <th>{t('reservedBalance')}</th>
+                  <th>{t('payableBalance')}</th>
+                  <th>{t('pendingShares')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {balances.data.map((balance) => (
+                  <tr key={`${balance.customer.id}:${balance.asset}`}>
+                    <td>
+                      <div className="name-cell">
+                        <div>
+                          <strong>{balance.customer.displayName}</strong>
+                          <span dir="ltr">{balance.customer.slug}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>{balance.asset}</td>
+                    <td dir="ltr">{formatAtomic(balance.confirmedAtomic, balance.asset)}</td>
+                    <td dir="ltr">{formatAtomic(balance.reservedAtomic, balance.asset)}</td>
+                    <td dir="ltr">{formatAtomic(balance.payableAtomic, balance.asset)}</td>
+                    <td dir="ltr" title={`work=${balance.pendingAcceptedWork}`}>
+                      {balance.pendingAcceptedShares}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <Empty />
+        )}
+      </Card>
       <Card>
         {query.data?.length ? (
           <div className="journal-list">

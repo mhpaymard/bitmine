@@ -1,0 +1,3 @@
+services:
+  caddy:
+    profiles: !override [caddy-disabled]

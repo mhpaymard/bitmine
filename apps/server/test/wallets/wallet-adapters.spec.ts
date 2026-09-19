@@ -112,6 +112,33 @@ describe('Bitcoin wallet adapter', () => {
     expect(call.mock.calls.map(([method]) => method)).toContain('walletlock');
   });
 
+  it('keeps customer outputs gross when the operator absorbs the Bitcoin network fee', async () => {
+    const adapter = new BitcoinWalletAdapter(config());
+    rpcCall(adapter).mockImplementation((method: string) => {
+      if (method === 'walletcreatefundedpsbt')
+        return Promise.resolve({ psbt: 'funded-psbt', fee: 0.000001 });
+      if (method === 'walletpassphrase' || method === 'walletlock')
+        return Promise.resolve(undefined);
+      if (method === 'walletprocesspsbt')
+        return Promise.resolve({ psbt: 'signed-psbt', complete: true });
+      if (method === 'finalizepsbt') return Promise.resolve({ hex: 'signed-hex', complete: true });
+      if (method === 'decoderawtransaction') return Promise.resolve({ txid: 'stable-txid' });
+      return Promise.reject(new Error(`Unexpected RPC method ${method}`));
+    });
+
+    const result = await adapter.preparePayout(
+      [
+        { id: 'a', address: 'bc1-a', grossAtomic: 600n },
+        { id: 'b', address: 'bc1-b', grossAtomic: 400n },
+      ],
+      { deductFeeFromOutputs: false },
+    );
+
+    expect(result.feeAtomic).toBe(100n);
+    expect(result.items.reduce((sum, item) => sum + item.netAtomic, 0n)).toBe(1_000n);
+    expect(result.items.reduce((sum, item) => sum + item.allocatedFeeAtomic, 0n)).toBe(100n);
+  });
+
   it('blocks mainnet broadcast and handles Bitcoin Core transaction-not-found', async () => {
     const blocked = new BitcoinWalletAdapter(
       config({ BITCOIN_NETWORK: 'mainnet', ENABLE_MAINNET_PAYOUTS: false }),

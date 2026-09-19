@@ -24,6 +24,13 @@ interface Customer {
   createdAt: string;
   _count: { workers: number };
   splitPolicies: Array<{ asset: string; customerBps: number; operatorBps: number }>;
+  portalCredential?: { tokenPrefix: string; createdAt: string; revokedAt?: string } | null;
+}
+
+interface PortalCredential {
+  customerSlug: string;
+  accessCode: string;
+  portalPath: string;
 }
 
 export function CustomersPage() {
@@ -32,6 +39,7 @@ export function CustomersPage() {
   const [open, setOpen] = useState(false);
   const [workerCustomer, setWorkerCustomer] = useState<Customer | null>(null);
   const [credential, setCredential] = useState<{ username: string; password: string } | null>(null);
+  const [portalCredential, setPortalCredential] = useState<PortalCredential | null>(null);
   const query = useQuery({
     queryKey: ['customers'],
     queryFn: () => api<Customer[]>('/api/v1/customers'),
@@ -52,6 +60,14 @@ export function CustomersPage() {
     onSuccess: async (data) => {
       setWorkerCustomer(null);
       setCredential(data.credentials);
+      await client.invalidateQueries({ queryKey: ['customers'] });
+    },
+  });
+  const rotatePortal = useMutation({
+    mutationFn: (id: string) =>
+      post<PortalCredential>(`/api/v1/customers/${id}/portal-access/rotate`, {}),
+    onSuccess: async (data) => {
+      setPortalCredential(data);
       await client.invalidateQueries({ queryKey: ['customers'] });
     },
   });
@@ -114,6 +130,16 @@ export function CustomersPage() {
                         <UserRoundCog size={16} />
                         {t('addWorker')}
                       </Button>
+                      <Button
+                        variant="ghost"
+                        disabled={rotatePortal.isPending}
+                        onClick={() => rotatePortal.mutate(customer.id)}
+                      >
+                        <KeyRound size={16} />
+                        {customer.portalCredential
+                          ? t('rotatePortalAccess')
+                          : t('createPortalAccess')}
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -157,6 +183,35 @@ export function CustomersPage() {
             <Button
               onClick={() =>
                 void navigator.clipboard.writeText(`${credential.username}\n${credential.password}`)
+              }
+            >
+              {t('copied')}
+            </Button>
+          </div>
+        </Modal>
+      )}
+      {portalCredential && (
+        <Modal title={t('portalAccess')} onClose={() => setPortalCredential(null)}>
+          <div className="credential-box">
+            <KeyRound size={26} />
+            <strong>{t('credentialWarning')}</strong>
+            <label>
+              {t('portalUrl')}
+              <code dir="ltr">{`${window.location.origin}${portalCredential.portalPath}`}</code>
+            </label>
+            <label>
+              {t('customerId')}
+              <code dir="ltr">{portalCredential.customerSlug}</code>
+            </label>
+            <label>
+              {t('portalAccessCode')}
+              <code dir="ltr">{portalCredential.accessCode}</code>
+            </label>
+            <Button
+              onClick={() =>
+                void navigator.clipboard.writeText(
+                  `${window.location.origin}${portalCredential.portalPath}\n${portalCredential.customerSlug}\n${portalCredential.accessCode}`,
+                )
               }
             >
               {t('copied')}

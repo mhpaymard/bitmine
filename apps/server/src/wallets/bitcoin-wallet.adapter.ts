@@ -7,6 +7,7 @@ import { readSecretFile } from '../config/environment';
 import { largestRemainder } from '../ledger/allocation';
 import type {
   PayoutCandidate,
+  PayoutPreparationOptions,
   PreparedPayout,
   WalletAdapter,
   WalletReceipt,
@@ -86,7 +87,10 @@ export class BitcoinWalletAdapter implements WalletAdapter {
     }));
   }
 
-  async preparePayout(items: PayoutCandidate[]): Promise<PreparedPayout> {
+  async preparePayout(
+    items: PayoutCandidate[],
+    options: PayoutPreparationOptions = { deductFeeFromOutputs: true },
+  ): Promise<PreparedPayout> {
     if (!items.length) throw new Error('Payout has no items');
     this.assertMainnetAllowed();
     const preliminary = await this.rpc.call<{ psbt: string; fee: number }>(
@@ -112,9 +116,15 @@ export class BitcoinWalletAdapter implements WalletAdapter {
       const feeMap = new Map(fees.map((fee) => [fee.key, fee.amount]));
       netItems = items.map((item) => {
         const allocatedFeeAtomic = feeMap.get(item.id) ?? 0n;
-        if (allocatedFeeAtomic >= item.grossAtomic)
+        if (options.deductFeeFromOutputs && allocatedFeeAtomic >= item.grossAtomic)
           throw new Error(`Payout ${item.id} is smaller than its fee`);
-        return { ...item, allocatedFeeAtomic, netAtomic: item.grossAtomic - allocatedFeeAtomic };
+        return {
+          ...item,
+          allocatedFeeAtomic,
+          netAtomic: options.deductFeeFromOutputs
+            ? item.grossAtomic - allocatedFeeAtomic
+            : item.grossAtomic,
+        };
       });
       funded = await this.rpc.call<{ psbt: string; fee: number }>('walletcreatefundedpsbt', [
         [],

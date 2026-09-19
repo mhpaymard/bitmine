@@ -133,6 +133,40 @@ describe('CustomersService secrets and payout safety', () => {
     ).rejects.toThrow(/Invalid worker IP rule/u);
   });
 
+  it('rotates a separately hashed customer portal code and never audits the raw value', async () => {
+    interface PortalUpsertInput {
+      create: { tokenHash: string };
+      update: { tokenHash: string };
+    }
+    const upsert = vi
+      .fn<(input: PortalUpsertInput) => Promise<{ tokenPrefix: string; createdAt: Date }>>()
+      .mockResolvedValue({
+        tokenPrefix: 'raw-worker',
+        createdAt: new Date('2026-09-17T00:00:00.000Z'),
+      });
+    const { service, auditRecord } = serviceWith({
+      customer: {
+        findUnique: vi.fn().mockResolvedValue({ id: 'customer-id', slug: 'customer' }),
+      },
+      customerPortalCredential: { upsert },
+    });
+
+    const result = await service.rotatePortalAccess('customer-id', actor);
+
+    expect(result).toMatchObject({
+      customerSlug: 'customer',
+      accessCode: 'raw-worker-token-that-is-only-shown-once',
+      portalPath: '/portal',
+      shownOnce: true,
+    });
+    expect(upsert.mock.calls[0]?.[0].create.tokenHash).toBe('argon2-token-hash');
+    expect(upsert.mock.calls[0]?.[0].update.tokenHash).toBe('argon2-token-hash');
+    expect(JSON.stringify(auditRecord.mock.calls)).not.toContain(
+      'raw-worker-token-that-is-only-shown-once',
+    );
+    expect(JSON.stringify(auditRecord.mock.calls)).not.toContain('argon2-token-hash');
+  });
+
   it('validates and cools a payout destination for exactly 24 hours', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-13T12:00:00.000Z'));

@@ -18,7 +18,20 @@ interface OperatorSetting {
   weekday: number;
   effectiveAt: string;
 }
+interface PayoutPolicy {
+  mode: 'DAILY' | 'INTERVAL';
+  intervalMinutes: number;
+  minuteOffset: number;
+  dailyTime: string;
+  timezone: string;
+  feePayer: 'CUSTOMER' | 'OPERATOR';
+  maxFeeBps: number;
+  maxBatchItems: number;
+  minimumAtomic: Record<'BTC' | 'XMR', string>;
+  dailyAutoLimitAtomic: Record<'BTC' | 'XMR', string>;
+}
 interface Settings {
+  payoutPolicy: PayoutPolicy;
   payoutSchedule: { time: string; timezone: string };
   operatorPayouts: Record<'BTC' | 'XMR', OperatorSetting>;
   pendingOperatorPayouts: Record<'BTC' | 'XMR', OperatorSetting | null>;
@@ -142,8 +155,23 @@ export function SettingsPage() {
 function FinanceSettings({ settings }: { settings: Settings }) {
   const { t } = useTranslation();
   const client = useQueryClient();
-  const [time, setTime] = useState(settings.payoutSchedule.time);
-  const [timezone, setTimezone] = useState(settings.payoutSchedule.timezone);
+  const policy = settings.payoutPolicy;
+  const [scheduleMode, setScheduleMode] = useState(policy.mode);
+  const [intervalMinutes, setIntervalMinutes] = useState(policy.intervalMinutes);
+  const [minuteOffset, setMinuteOffset] = useState(policy.minuteOffset);
+  const [dailyTime, setDailyTime] = useState(policy.dailyTime);
+  const [timezone, setTimezone] = useState(policy.timezone);
+  const [feePayer, setFeePayer] = useState(policy.feePayer);
+  const [maxFeeBps, setMaxFeeBps] = useState(policy.maxFeeBps);
+  const [maxBatchItems, setMaxBatchItems] = useState(policy.maxBatchItems);
+  const [bitcoinMinimumAtomic, setBitcoinMinimumAtomic] = useState(policy.minimumAtomic.BTC);
+  const [moneroMinimumAtomic, setMoneroMinimumAtomic] = useState(policy.minimumAtomic.XMR);
+  const [bitcoinDailyAutoLimitAtomic, setBitcoinDailyAutoLimitAtomic] = useState(
+    policy.dailyAutoLimitAtomic.BTC,
+  );
+  const [moneroDailyAutoLimitAtomic, setMoneroDailyAutoLimitAtomic] = useState(
+    policy.dailyAutoLimitAtomic.XMR,
+  );
   const update = useMutation({
     mutationFn: ({ path, body }: { path: string; body: unknown }) => put(path, body),
     onSuccess: async () => client.invalidateQueries({ queryKey: ['settings'] }),
@@ -160,24 +188,148 @@ function FinanceSettings({ settings }: { settings: Settings }) {
         className="form-grid"
         onSubmit={(event) => {
           event.preventDefault();
-          update.mutate({ path: '/api/v1/settings/payout-schedule', body: { time, timezone } });
+          update.mutate({
+            path: '/api/v1/settings/payout-schedule',
+            body: {
+              mode: scheduleMode,
+              intervalMinutes,
+              minuteOffset,
+              dailyTime,
+              timezone,
+              feePayer,
+              maxFeeBps,
+              maxBatchItems,
+              bitcoinMinimumAtomic,
+              moneroMinimumAtomic,
+              bitcoinDailyAutoLimitAtomic,
+              moneroDailyAutoLimitAtomic,
+            },
+          });
         }}
       >
-        <Field label={t('dailyTime')}>
-          <input
-            dir="ltr"
-            type="time"
-            value={time}
-            onChange={(event) => setTime(event.target.value)}
-            required
-          />
+        <Field label={t('customerPayoutMode')}>
+          <select
+            value={scheduleMode}
+            onChange={(event) => setScheduleMode(event.target.value as PayoutPolicy['mode'])}
+          >
+            <option value="DAILY">DAILY</option>
+            <option value="INTERVAL">INTERVAL</option>
+          </select>
         </Field>
+        {scheduleMode === 'DAILY' ? (
+          <Field label={t('dailyTime')}>
+            <input
+              dir="ltr"
+              type="time"
+              value={dailyTime}
+              onChange={(event) => setDailyTime(event.target.value)}
+              required
+            />
+          </Field>
+        ) : (
+          <>
+            <Field label={t('intervalMinutes')}>
+              <input
+                dir="ltr"
+                type="number"
+                min={60}
+                max={10080}
+                value={intervalMinutes}
+                onChange={(event) => setIntervalMinutes(Number(event.target.value))}
+                required
+              />
+            </Field>
+            <Field label={t('minuteOffset')}>
+              <input
+                dir="ltr"
+                type="number"
+                min={0}
+                max={59}
+                value={minuteOffset}
+                onChange={(event) => setMinuteOffset(Number(event.target.value))}
+                required
+              />
+            </Field>
+          </>
+        )}
+        {scheduleMode === 'INTERVAL' && (
+          <Field label={t('dailyTime')} hint={t('operatorDailyTimeHelp')}>
+            <input
+              dir="ltr"
+              type="time"
+              value={dailyTime}
+              onChange={(event) => setDailyTime(event.target.value)}
+              required
+            />
+          </Field>
+        )}
         <Field label={t('timezone')}>
           <input
             dir="ltr"
             value={timezone}
             onChange={(event) => setTimezone(event.target.value)}
             required
+          />
+        </Field>
+        <Field label={t('feePayer')}>
+          <select
+            value={feePayer}
+            onChange={(event) => setFeePayer(event.target.value as PayoutPolicy['feePayer'])}
+          >
+            <option value="OPERATOR">OPERATOR</option>
+            <option value="CUSTOMER">CUSTOMER</option>
+          </select>
+        </Field>
+        <Field label={t('maxFeeBps')} hint={t('basisPointHelp')}>
+          <input
+            dir="ltr"
+            type="number"
+            min={1}
+            max={10000}
+            value={maxFeeBps}
+            onChange={(event) => setMaxFeeBps(Number(event.target.value))}
+          />
+        </Field>
+        <Field label={t('maxBatchItems')}>
+          <input
+            dir="ltr"
+            type="number"
+            min={1}
+            max={1000}
+            value={maxBatchItems}
+            onChange={(event) => setMaxBatchItems(Number(event.target.value))}
+          />
+        </Field>
+        <Field label={t('bitcoinMinimumAtomic')}>
+          <input
+            dir="ltr"
+            value={bitcoinMinimumAtomic}
+            onChange={(event) => setBitcoinMinimumAtomic(event.target.value)}
+            pattern="\d+"
+          />
+        </Field>
+        <Field label={t('moneroMinimumAtomic')}>
+          <input
+            dir="ltr"
+            value={moneroMinimumAtomic}
+            onChange={(event) => setMoneroMinimumAtomic(event.target.value)}
+            pattern="\d+"
+          />
+        </Field>
+        <Field label={t('bitcoinDailyAutoLimitAtomic')}>
+          <input
+            dir="ltr"
+            value={bitcoinDailyAutoLimitAtomic}
+            onChange={(event) => setBitcoinDailyAutoLimitAtomic(event.target.value)}
+            pattern="\d+"
+          />
+        </Field>
+        <Field label={t('moneroDailyAutoLimitAtomic')}>
+          <input
+            dir="ltr"
+            value={moneroDailyAutoLimitAtomic}
+            onChange={(event) => setMoneroDailyAutoLimitAtomic(event.target.value)}
+            pattern="\d+"
           />
         </Field>
         <div>

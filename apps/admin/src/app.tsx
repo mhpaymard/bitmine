@@ -9,6 +9,7 @@ import { DashboardPage } from './pages/dashboard';
 import { LedgerPage } from './pages/ledger';
 import { LoginPage } from './pages/login';
 import { PayoutsPage } from './pages/payouts';
+import { PortalPage } from './pages/portal';
 import { SettingsPage } from './pages/settings';
 import { UpstreamsPage } from './pages/upstreams';
 import { WalletsPage } from './pages/wallets';
@@ -23,6 +24,7 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/portal" element={<PortalPage />} />
       <Route element={<Protected />}>
         <Route index element={<DashboardPage />} />
         <Route path="customers" element={<CustomersPage />} />

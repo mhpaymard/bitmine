@@ -8,16 +8,16 @@ Each downstream miner gets a dedicated upstream TCP/TLS connection. This preserv
 
 ## Modules
 
-| Module       | Responsibility                                                                               |
-| ------------ | -------------------------------------------------------------------------------------------- |
-| `gateway`    | TCP framing, local worker auth, BTC Stratum V1, XMR JSON-RPC, failover, share journal        |
-| `customers`  | Customers, workers, one-time credentials, rotation/revocation, policy versions, destinations |
-| `upstreams`  | Encrypted pool credentials, priority, TLS and health checks                                  |
-| `ledger`     | Exact allocation, largest remainder, append-only double-entry journal                        |
-| `wallets`    | Bitcoin Core/Monero RPC, deposits, confirmations, PSBT/transfer preparation                  |
-| `payouts`    | Batch planning, TOTP approval, signing, broadcast, crash reconciliation                      |
-| `auth/audit` | Redis sessions, CSRF, RBAC, TOTP/recovery codes, hash-chained audit events                   |
-| `settings`   | Daily timezone schedule and cooled operator payout configuration                             |
+| Module       | Responsibility                                                                                            |
+| ------------ | --------------------------------------------------------------------------------------------------------- |
+| `gateway`    | TCP framing, local worker auth, BTC Stratum V1, XMR JSON-RPC, failover, share journal                     |
+| `customers`  | Customers, workers, one-time credentials, rotation/revocation, policy versions, destinations              |
+| `upstreams`  | Encrypted pool credentials, priority, TLS and health checks                                               |
+| `ledger`     | Exact allocation, largest remainder, append-only double-entry journal                                     |
+| `wallets`    | Bitcoin Core/Monero RPC, deposits, confirmations, PSBT/transfer preparation                               |
+| `payouts`    | Batch planning, TOTP approval, signing, broadcast, crash reconciliation                                   |
+| `auth/audit` | Redis sessions, CSRF, RBAC, TOTP/recovery codes, hash-chained audit events                                |
+| `settings`   | Dynamic daily/interval customer payout policy, cumulative limits and cooled operator payout configuration |
 
 ## Data guarantees
 

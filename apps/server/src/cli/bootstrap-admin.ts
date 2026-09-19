@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadEnvFile } from 'node:process';
 import { hash } from 'argon2';
@@ -11,12 +11,15 @@ if (existsSync(rootEnvironment)) loadEnvFile(rootEnvironment);
 
 async function main(): Promise<void> {
   const email = (process.env.BOOTSTRAP_ADMIN_EMAIL ?? process.argv[2])?.trim().toLowerCase();
-  const password = process.env.BOOTSTRAP_ADMIN_PASSWORD ?? process.argv[3];
+  const passwordFile = process.env.BOOTSTRAP_ADMIN_PASSWORD_FILE;
+  const password =
+    process.env.BOOTSTRAP_ADMIN_PASSWORD ??
+    (passwordFile ? readFileSync(passwordFile, 'utf8').trim() : process.argv[3]);
   const displayName = process.env.BOOTSTRAP_ADMIN_NAME ?? process.argv[4] ?? 'Owner';
   const databaseUrl = process.env.DATABASE_URL;
   if (!email || !password || !databaseUrl || password.length < 12) {
     throw new Error(
-      'Set DATABASE_URL, BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD (minimum 12 characters)',
+      'Set DATABASE_URL, BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD or BOOTSTRAP_ADMIN_PASSWORD_FILE (minimum 12 characters)',
     );
   }
   const pool = new Pool({ connectionString: databaseUrl, max: 2 });

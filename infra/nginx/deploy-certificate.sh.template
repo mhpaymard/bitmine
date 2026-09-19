@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+project_root='__PROJECT_ROOT__'
+cert_name='__CERT_NAME__'
+service_user='__SERVICE_USER__'
+
+install -o "$service_user" -g "$service_user" -m 0640 \
+	"/etc/letsencrypt/live/$cert_name/fullchain.pem" \
+	"$project_root/secrets/stratum-tls-cert.pem"
+install -o "$service_user" -g "$service_user" -m 0600 \
+	"/etc/letsencrypt/live/$cert_name/privkey.pem" \
+	"$project_root/secrets/stratum-tls-key.pem"
+nginx -t
+systemctl reload nginx
+systemctl try-restart mining-gateway.service

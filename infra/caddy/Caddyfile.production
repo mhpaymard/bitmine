@@ -14,6 +14,12 @@ https://{$GATEWAY_DOMAIN} {
 		Referrer-Policy "same-origin"
 		-Server
 	}
+	@portal path /portal /portal/* /assets/* /api/v1/public/portal /api/v1/public/portal/*
+	handle @portal {
+		reverse_proxy {$ADMIN_UPSTREAM} {
+			flush_interval -1
+		}
+	}
 	@private remote_ip {$ADMIN_ALLOWLIST}
 	handle @private {
 		reverse_proxy {$ADMIN_UPSTREAM} {

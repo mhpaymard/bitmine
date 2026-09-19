@@ -62,8 +62,11 @@ docker compose --env-file .env.infrastructure --profile core --profile backup up
 1. در پنل یک upstream بسازید و اتصال آن را Test کنید.
 2. آدرس receive اختصاصی همان upstream را در حساب استخر عمومی به‌عنوان payout address ثبت کنید.
 3. customer و worker بسازید و token یک‌بارنمایش را همان لحظه ذخیره کنید.
-4. ماینر BTC را به `stratum+tcp://SERVER_LAN_IP:3333` یا XMRig را به `SERVER_LAN_IP:4444` وصل کنید؛ username برابر `customer.worker` و password همان token است.
-5. مقصد payout مشتری را ثبت کنید؛ پس از cooling امنیتی 24 ساعت فعال می‌شود.
+4. برای customer یک portal access code یک‌بارنمایش بسازید و جدا از token ماینر تحویل دهید.
+5. ماینر BTC را به `stratum+tcp://SERVER_LAN_IP:3333` یا XMRig را به `SERVER_LAN_IP:4444` وصل کنید؛ username برابر `customer.worker` و password همان token است.
+6. مشتری در `/portal` hashrate، درآمد تخصیص‌یافته، تخمین، موجودی، موعد بعدی واریز و تاریخچه را می‌بیند و مقصد payout را ثبت می‌کند؛ مقصد پس از cooling امنیتی 24 ساعت فعال می‌شود.
+
+زمان‌بندی تسویه از Settings پویاست: `INTERVAL=240` برای هر ۴ ساعت و `INTERVAL=360` برای هر ۶ ساعت. رسیدن زمان scheduler تضمین پرداخت نیست؛ فقط موجودی واقعاً دریافت‌شده و تأییدشده‌ای که حداقل‌ها و کنترل‌های policy را پاس کند وارد batch می‌شود.
 
 `ENABLE_MAINNET_PAYOUTS=false` پیش‌فرض سخت پروژه است. تا پایان [چک‌لیست mainnet](docs/MAINNET_CHECKLIST.fa.md) آن را تغییر ندهید.
 
@@ -93,6 +96,7 @@ BITCOIN_GATEWAY_TLS_KEY_FILE=../../secrets/stratum-tls-key.pem
 - [افزودن استخر](docs/POOL_ONBOARDING.fa.md)
 - [استقرار Windows و Ubuntu](docs/DEPLOYMENT.fa.md)
 - [راهنمای کامل Production](docs/PRODUCTION_RUNBOOK.fa.md)
+- [استقرار Production با Nginx](docs/PRODUCTION_NGINX.fa.md)
 - [عملیات روزانه](docs/OPERATIONS.fa.md)
 - [Backup و Restore](docs/BACKUP_RESTORE.fa.md)
 - [عیب‌یابی](docs/TROUBLESHOOTING.fa.md)
@@ -104,10 +108,16 @@ BITCOIN_GATEWAY_TLS_KEY_FILE=../../secrets/stratum-tls-key.pem
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm test:e2e:local-mining
+pnpm test:e2e:local-mining:bitcoin-cpu
+pnpm test:e2e:local-mining:bitcoin-public
+pnpm test:e2e:local-mining:xmrig
 pnpm build
 docker compose --profile core --profile bitcoin --profile monero --profile observability --profile backup config --quiet
 ./scripts/preflight-production.ps1 -BaseUrl https://gateway.local:8443 -StratumHost mine.example.com
 ```
+
+`bitcoin-cpu` یک job کم‌سختی را با SHA-256d واقعی روی CPU حل می‌کند و پذیرش مستقل upstream و ثبت PostgreSQL را می‌سنجد. `bitcoin-public` علاوه بر آن به CKPool عمومی وصل می‌شود، احراز هویت و دریافت job واقعی mainnet را بررسی می‌کند و برای جلوگیری از هر اثر مالی، هیچ share عمومی ارسال نمی‌کند.
 
 بخش live در preflight فقط handshake TLS را نمی‌سنجد: status هر دو wallet، receive address هر حساب pool و handshake واقعی `subscribe/authorize` یا `login` تمام endpointهای فعال نیز باید موفق باشند. این self-test تراکنش یا payout ایجاد نمی‌کند.
 

@@ -38,6 +38,15 @@ Check 'TLS validation environment' {
   }
 }
 
+Check 'No sensitive files tracked by Git' {
+  if (Test-Path -LiteralPath '.git') {
+    $tracked = git ls-files -- '.env' '.env.infrastructure' 'secrets/*' 'backups/*' '*.log'
+    if ($LASTEXITCODE -ne 0) { throw 'git ls-files failed' }
+    $unsafe = $tracked | Where-Object { $_ -ne 'secrets/.gitkeep' }
+    if ($unsafe) { throw "Tracked sensitive files: $($unsafe -join ', ')" }
+  }
+}
+
 Check 'Configuration and secrets' {
   $required = @(
     '.env', '.env.infrastructure',

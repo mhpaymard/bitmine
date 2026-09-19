@@ -4,18 +4,45 @@ param([string]$BaseUrl = 'http://127.0.0.1:3000')
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $credentialPath = Join-Path $projectRoot 'secrets/local-admin-credentials.txt'
-if (-not (Test-Path -LiteralPath $credentialPath)) {
-  throw 'Local admin credentials are missing. Run bootstrap first.'
-}
-
 $credentials = @{}
-Get-Content -LiteralPath $credentialPath | ForEach-Object {
-  $parts = $_.Split('=', 2)
-  if ($parts.Count -eq 2) { $credentials[$parts[0]] = $parts[1] }
+if (Test-Path -LiteralPath $credentialPath) {
+  Get-Content -LiteralPath $credentialPath | ForEach-Object {
+    $parts = $_.Split('=', 2)
+    if ($parts.Count -eq 2) { $credentials[$parts[0]] = $parts[1] }
+  }
+} else {
+  $passwordPath = Join-Path $projectRoot 'secrets/local-admin-password.txt'
+  if (-not (Test-Path -LiteralPath $passwordPath)) {
+    throw 'Local admin credentials are missing. Run bootstrap first.'
+  }
+  $credentials.email = 'admin@localhost.local'
+  $credentials.password = (Get-Content -Raw -LiteralPath $passwordPath).Trim()
 }
 if (-not $credentials.email -or -not $credentials.password) {
   throw 'Local admin credentials are malformed.'
 }
+
+$ready = $null
+for ($attempt = 0; $attempt -lt 60; $attempt++) {
+  $readyRaw = curl.exe --noproxy '*' --silent "$BaseUrl/health/ready"
+  if ($LASTEXITCODE -eq 0) {
+    try { $ready = $readyRaw | ConvertFrom-Json } catch { $ready = $null }
+    if ($ready.status -eq 'ok') { break }
+  }
+  Start-Sleep -Seconds 1
+}
+if ($ready.status -ne 'ok') { throw 'Readiness did not become healthy within 60 seconds.' }
+
+$spaCode = curl.exe --noproxy '*' --silent --show-error --output NUL `
+  --write-out '%{http_code}' "$BaseUrl/"
+$plainTraversalCode = curl.exe --noproxy '*' --path-as-is --silent --show-error --output NUL `
+  --write-out '%{http_code}' "$BaseUrl/assets/../../.env"
+$encodedTraversalCode = curl.exe --noproxy '*' --path-as-is --silent --show-error --output NUL `
+  --write-out '%{http_code}' "$BaseUrl/assets/%2e%2e%2f%2e%2e%2f.env"
+if ($spaCode -ne '200' -or $plainTraversalCode -ne '404' -or $encodedTraversalCode -ne '404') {
+  throw "Static routing check failed (spa=$spaCode plain=$plainTraversalCode encoded=$encodedTraversalCode)."
+}
+Write-Host '[PASS] Readiness, admin SPA and static traversal rejection.'
 
 $cookieJar = [System.IO.Path]::GetTempFileName()
 try {

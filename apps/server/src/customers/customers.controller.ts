@@ -86,6 +86,12 @@ export class CustomersController {
     return this.customers.revokeCredential(id, admin);
   }
 
+  @Post(':id/portal-access/rotate')
+  @Roles(AdminRole.OWNER, AdminRole.OPERATOR)
+  rotatePortalAccess(@Param('id') id: string, @CurrentAdmin() admin: AuthenticatedAdmin) {
+    return this.customers.rotatePortalAccess(id, admin);
+  }
+
   @Post(':id/split-policies')
   @Roles(AdminRole.OWNER, AdminRole.OPERATOR)
   policy(

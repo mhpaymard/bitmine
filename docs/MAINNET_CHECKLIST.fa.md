@@ -4,7 +4,7 @@
 - [ ] restore رمز‌شده PostgreSQL و هر دو wallet روی میزبان جدا موفق بوده است.
 - [ ] seed/descriptor و کلید age آفلاین، چندنسخه و با کنترل دسترسی نگهداری می‌شوند.
 - [ ] حساب سرویس، ACL پوشه secrets، firewall/VLAN/VPN و patching سیستم‌عامل بازبینی شده‌اند.
-- [ ] Caddy فقط admin IP/VPN را می‌پذیرد و RPC/DB/Redis/metrics عمومی نیستند.
+- [ ] reverse proxy انتخابی (Nginx یا Caddy) فقط مسیر پرتال را عمومی و پنل مدیریت را فقط برای admin IP/VPN باز می‌کند؛ RPC/DB/Redis/metrics عمومی نیستند.
 - [ ] متغیر ناامن `NODE_TLS_REJECT_UNAUTHORIZED=0` در service account/environment وجود ندارد.
 - [ ] testnet/regtest چرخه کامل deposit → allocation → approval → batch → confirmation را گذرانده است.
 - [ ] crash در PREPARE/SIGNED/BROADCAST و reconciliation بدون پرداخت تکراری آزمایش شده است.

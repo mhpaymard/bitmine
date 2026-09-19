@@ -8,6 +8,7 @@ export interface FakePoolOptions {
   responseDelayMs?: number;
   malformedAfterMessages?: number;
   disconnectAfterMessages?: number;
+  moneroTarget?: string;
 }
 
 abstract class FakeLinePool {
@@ -130,7 +131,7 @@ export class FakeMoneroPool extends FakeLinePool {
             job: {
               blob: '00'.repeat(76),
               job_id: 'fake-job',
-              target: 'ffffff7f',
+              target: this.behavior.moneroTarget ?? 'ffffff7f',
               height: 1,
               seed_hash: '00'.repeat(32),
             },

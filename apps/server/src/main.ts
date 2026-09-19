@@ -94,8 +94,12 @@ async function bootstrap(): Promise<void> {
       ) {
         return reply.code(404).send({ error: { status: 404, message: 'Not found' } });
       }
-      const assetMatch = request.url.split('?', 1)[0]?.match(/^\/assets\/([a-zA-Z0-9_.-]+)$/u);
-      if (assetMatch?.[1]) {
+      const requestPath = request.url.split('?', 1)[0] ?? '';
+      if (requestPath.startsWith('/assets/')) {
+        const assetMatch = requestPath.match(/^\/assets\/([a-zA-Z0-9_.-]+)$/u);
+        if (!assetMatch?.[1]) {
+          return reply.code(404).send({ error: { status: 404, message: 'Asset not found' } });
+        }
         const extension = assetMatch[1].split('.').at(-1)?.toLowerCase();
         const contentTypes: Record<string, string> = {
           css: 'text/css; charset=utf-8',

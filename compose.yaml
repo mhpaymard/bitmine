@@ -91,7 +91,7 @@ services:
     environment:
       BITCOIN_CHAIN: ${BITCOIN_CHAIN:-regtest}
       BITCOIN_RPC_USER: miningrpc
-      BITCOIN_WALLET_NAME: mining-gateway
+      BITCOIN_WALLET_NAME: ${BITCOIN_WALLET_NAME:-mining-gateway}
       BITCOIN_PRUNE_MIB: ${BITCOIN_PRUNE_MIB:-100000}
     secrets: [bitcoin_rpc_password, bitcoin_wallet_passphrase]
     ports:
@@ -159,6 +159,7 @@ services:
       MONERO_RPC_USER: miningrpc
       MONERO_WALLET_NAME: mining-gateway
       MONERO_BOOTSTRAP_WALLET: ${MONERO_BOOTSTRAP_WALLET:-false}
+      MONERO_WALLET_RESTORE_HEIGHT: ${MONERO_WALLET_RESTORE_HEIGHT:-0}
     secrets: [monero_rpc_password, monero_wallet_passphrase]
     ports:
       - '127.0.0.1:38088:38088'

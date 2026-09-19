@@ -29,6 +29,7 @@ if [ ! -f "$wallet_path" ]; then
   umask 077
   gosu monero monero-wallet-cli $network_flag \
     --generate-new-wallet "$wallet_path" \
+    --restore-height "${MONERO_WALLET_RESTORE_HEIGHT:-0}" \
     --password-file "$wallet_password_file" \
     --mnemonic-language English \
     --command exit > /wallet/INITIAL_WALLET_SEED.txt 2>&1
@@ -45,5 +46,6 @@ exec gosu monero monero-wallet-rpc $network_flag \
   --rpc-bind-port 38088 \
   --confirm-external-bind \
   --config-file "$rpc_config" \
+  --no-initial-sync \
   --disable-rpc-ban \
   --non-interactive

@@ -16,6 +16,11 @@ export class LedgerController {
     return this.ledger.listTransactions(asset, limit ? Number(limit) : 100);
   }
 
+  @Get('customer-balances')
+  customerBalances(@Query('asset') asset?: AssetCode) {
+    return this.ledger.customerBalances(asset);
+  }
+
   @Get('trial-balance/:asset')
   trialBalance(@Param('asset') asset: AssetCode) {
     return this.ledger.trialBalance(asset);

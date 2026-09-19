@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-project_root="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-cd "$project_root"
+project_root="$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)"
+cd "$project_root" || exit
 
 base_url="${BASE_URL:-https://gateway.example.com:8443}"
 stratum_host="${STRATUM_HOST:-gateway.example.com}"
@@ -10,6 +10,7 @@ stratum_port="${STRATUM_PORT:-443}"
 skip_quality="${SKIP_QUALITY:-false}"
 skip_live="${SKIP_LIVE:-false}"
 app_user="${PREFLIGHT_APP_USER:-}"
+compose_overlay="${COMPOSE_OVERLAY_FILE:-compose.production.yaml}"
 failures=()
 
 check() {
@@ -42,6 +43,16 @@ safe_tls_environment() {
   [ "${NODE_TLS_REJECT_UNAUTHORIZED:-}" != "0" ]
 }
 
+no_tracked_secrets() {
+  [ ! -d .git ] && return 0
+  local tracked
+  tracked="$(git ls-files -- .env .env.infrastructure 'secrets/*' 'backups/*' '*.log' | grep -Fvx 'secrets/.gitkeep' || true)"
+  if [ -n "$tracked" ]; then
+    printf 'Tracked sensitive files:\n%s\n' "$tracked" >&2
+    return 1
+  fi
+}
+
 required_configuration() {
   local required=(
     .env .env.infrastructure
@@ -64,10 +75,10 @@ required_configuration() {
     printf 'The private age identity must not be stored on the production server.\n' >&2
     return 1
   }
-  [ ! -e INITIAL_WALLET_SEED.txt ] && [ ! -e secrets/INITIAL_WALLET_SEED.txt ] || {
+  if [ -e INITIAL_WALLET_SEED.txt ] || [ -e secrets/INITIAL_WALLET_SEED.txt ]; then
     printf 'A plaintext Monero seed remains on the production server.\n' >&2
     return 1
-  }
+  fi
 }
 
 restricted_secret_permissions() {
@@ -98,15 +109,26 @@ certificate_validity() {
 }
 
 compose_configuration() {
-  docker compose -f compose.yaml -f compose.production.yaml \
+  docker compose -f compose.yaml -f "$compose_overlay" \
     --env-file .env.infrastructure \
     --profile core --profile bitcoin --profile monero \
     --profile observability --profile backup config --quiet
 }
 
 live_readiness() {
-  curl --fail --silent --show-error "$base_url/health/ready" |
+  local host port
+  host="$(node -e 'process.stdout.write(new URL(process.argv[1]).hostname)' "$base_url")" || return
+  port="$(node -e 'const u=new URL(process.argv[1]);process.stdout.write(u.port||"443")' "$base_url")" || return
+  curl --noproxy '*' --resolve "$host:$port:127.0.0.1" --fail --silent --show-error "$base_url/health/ready" |
     node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(x.status!=="ok")process.exit(1)})'
+}
+
+public_portal() {
+  local host port
+  host="$(node -e 'process.stdout.write(new URL(process.argv[1]).hostname)' "$base_url")" || return
+  port="$(node -e 'const u=new URL(process.argv[1]);process.stdout.write(u.port||"443")' "$base_url")" || return
+  curl --noproxy '*' --resolve "$host:$port:127.0.0.1" --fail --silent --show-error "$base_url/portal" |
+    grep -Fq '<div id="root"></div>'
 }
 
 trusted_stratum_tls() {
@@ -117,6 +139,7 @@ trusted_stratum_tls() {
 
 check 'Node.js 24+' node_24
 check 'TLS validation environment' safe_tls_environment
+check 'No sensitive files tracked by Git' no_tracked_secrets
 check 'Configuration, secrets and backup recipient' required_configuration
 check 'Secret file permissions' restricted_secret_permissions
 check 'Production configuration policy and admin origin' production_policy
@@ -139,6 +162,7 @@ fi
 if [ "$skip_live" != "true" ]; then
   check 'Wallets and real upstream protocol authentication' run_app pnpm --filter @mitm/server self-test:operational
   check 'API readiness' live_readiness
+  check 'Public customer portal' public_portal
   check 'Trusted Stratum TLS hostname handshake' trusted_stratum_tls
 fi
 

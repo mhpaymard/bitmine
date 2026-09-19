@@ -46,6 +46,9 @@ export class CustomersService {
       include: {
         _count: { select: { workers: true } },
         splitPolicies: { orderBy: { effectiveAt: 'desc' }, distinct: ['asset'] },
+        portalCredential: {
+          select: { tokenPrefix: true, createdAt: true, revokedAt: true },
+        },
       },
     });
   }
@@ -225,6 +228,34 @@ export class CustomersService {
       entityId: credentialId,
     });
     return credential;
+  }
+
+  async rotatePortalAccess(customerId: string, actor: AuthenticatedAdmin) {
+    const customer = await this.prisma.customer.findUnique({ where: { id: customerId } });
+    if (!customer) throw new NotFoundException('Customer not found');
+    const accessCode = this.crypto.randomToken(32);
+    const tokenHash = await this.crypto.hashSecret(accessCode);
+    const tokenPrefix = accessCode.slice(0, 10);
+    const credential = await this.prisma.customerPortalCredential.upsert({
+      where: { customerId },
+      create: { customerId, tokenHash, tokenPrefix },
+      update: { tokenHash, tokenPrefix, createdAt: new Date(), revokedAt: null },
+      select: { tokenPrefix: true, createdAt: true },
+    });
+    await this.audit.record({
+      actorId: actor.id,
+      action: 'CUSTOMER_PORTAL_ACCESS_ROTATED',
+      entityType: 'CustomerPortalCredential',
+      entityId: customerId,
+      after: credential,
+    });
+    return {
+      customerSlug: customer.slug,
+      accessCode,
+      tokenPrefix,
+      portalPath: '/portal',
+      shownOnce: true,
+    };
   }
 
   async createPolicy(customerId: string, dto: CreateSplitPolicyDto, actor: AuthenticatedAdmin) {
