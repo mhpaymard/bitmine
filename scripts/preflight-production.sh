@@ -4,9 +4,9 @@ set -uo pipefail
 project_root="$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)"
 cd "$project_root" || exit
 
-base_url="${BASE_URL:-https://gateway.example.com:8443}"
-stratum_host="${STRATUM_HOST:-gateway.example.com}"
-stratum_port="${STRATUM_PORT:-443}"
+base_url="${BASE_URL:-https://panel.partie.ir}"
+stratum_host="${STRATUM_HOST:-btc.partie.ir}"
+stratum_port="${STRATUM_PORT:-3334}"
 skip_quality="${SKIP_QUALITY:-false}"
 skip_live="${SKIP_LIVE:-false}"
 app_user="${PREFLIGHT_APP_USER:-}"

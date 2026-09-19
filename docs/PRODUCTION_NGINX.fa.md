@@ -6,11 +6,11 @@
 
 روی یک IP عمومی، دو process نمی‌توانند هم‌زمان روی `0.0.0.0:443` گوش کنند. معماری پیش‌فرض این راهنما:
 
-| سرویس                                 | آدرس نمونه          | پورت |
+| سرویس                                 | آدرس نهایی          | پورت |
 | ------------------------------------- | ------------------- | ---: |
-| پرتال و پنل HTTPS از طریق Nginx       | `panel.example.com` |  443 |
-| Bitcoin Stratum TLS مستقیم به Gateway | `mine.example.com`  | 3334 |
-| Monero TLS مستقیم به Gateway          | `xmr.example.com`   | 4443 |
+| پرتال و پنل HTTPS از طریق Nginx       | `panel.partie.ir` |  443 |
+| Bitcoin Stratum TLS مستقیم به Gateway | `btc.partie.ir`   | 3334 |
+| Monero TLS مستقیم به Gateway          | `xmr.partie.ir`   | 4443 |
 | API داخلی NestJS                      | `127.0.0.1`         | 3000 |
 
 اگر BTC حتماً باید روی 443 باشد، یک IP عمومی دوم بگیرید: Nginx را با `WEB_BIND_IP` روی IP وب و Gateway را با `BITCOIN_BIND_IP` روی IP ماینینگ bind کنید و `BITCOIN_TLS_PORT=443` بگذارید. multiplex کردن HTTPS و Stratum با SNI برای همه ASICها قابل اتکا نیست و مسیر پیش‌فرض این راهنما نیست.
@@ -22,9 +22,9 @@ Nginx فقط `/portal`، `/assets/*` و دو API عمومی پرتال را بر
 این مقادیر را آماده کنید:
 
 - IP عمومی ثابت سرور؛
-- `PANEL_DOMAIN`، مثلاً `panel.yourdomain.com`؛
-- `MINING_DOMAIN`، مثلاً `mine.yourdomain.com`؛
-- `XMR_DOMAIN`، مثلاً `xmr.yourdomain.com`؛
+- `PANEL_DOMAIN=panel.partie.ir` برای پنل و پرتال؛
+- `MINING_DOMAIN=btc.partie.ir` برای Bitcoin Stratum؛
+- `XMR_DOMAIN=xmr.partie.ir` برای Monero Stratum؛
 - ایمیل عملیاتی برای Let's Encrypt؛
 - IP ثابت مدیریت یا subnet یک VPN به‌عنوان `ADMIN_CIDR`؛
 - repository URL و commit/tag بازبینی‌شده؛
@@ -32,15 +32,15 @@ Nginx فقط `/portal`، `/assets/*` و دو API عمومی پرتال را بر
 - credential حساب‌های رسمی pool و receive address مختص هر حساب؛
 - مقصدهای payout و سیاست fee/minimum که دو نفره بازبینی شده باشند.
 
-هر سه رکورد DNS نوع `A` را به IP سرور اشاره دهید. رکورد `AAAA` را فقط اگر IPv6 واقعاً firewall و route شده است بسازید:
+دامنه اصلی `partie.ir` برای وب‌سایت اصلی/آینده رزرو می‌ماند و Gateway فقط از سه subdomain بالا استفاده می‌کند. در DNS سه رکورد `A` زیر را به IP عمومی production اشاره دهید. رکورد `AAAA` را فقط اگر IPv6 واقعاً firewall و route شده است بسازید:
 
 ```bash
-dig +short A panel.yourdomain.com
-dig +short A mine.yourdomain.com
-dig +short A xmr.yourdomain.com
+dig +short A panel.partie.ir
+dig +short A btc.partie.ir
+dig +short A xmr.partie.ir
 ```
 
-برای deployment فعلی که هر سه کاربرد را روی `mob.partie.ir` و پورت‌های متفاوت می‌گذارد، یک رکورد `A` کافی است. template آماده آن در [mob.partie.ir.env.example](../deploy/mob.partie.ir.env.example) قرار دارد. تا وقتی `dig +short A mob.partie.ir` IP production را برنگرداند، Certbot را اجرا نکنید.
+هر سه فرمان باید IP production یکسان را برگردانند. template آماده در [partie.ir.env.example](../deploy/partie.ir.env.example) قرار دارد. تا وقتی هر سه رکورد درست resolve نشده‌اند، Certbot را اجرا نکنید. اگر DNS provider حالت proxy/CDN دارد، رکوردهای BTC/XMR باید DNS-only باشند مگر آن سرویس صریحاً raw TCP پورت‌های 3334 و 4443 را پشتیبانی کند.
 
 هیچ password، private key، wallet seed، access token یا age identity را در چت، Git، ticket یا shell history قرار ندهید.
 
@@ -135,7 +135,7 @@ chmod 600 backup-age-identity.txt
 
 ```bash
 sudo install -d -o root -g root -m 0700 /etc/mining-gateway
-sudo install -o root -g root -m 0600 deploy/mob.partie.ir.env.example /etc/mining-gateway/deploy.env
+sudo install -o root -g root -m 0600 deploy/partie.ir.env.example /etc/mining-gateway/deploy.env
 sudoedit /etc/mining-gateway/deploy.env
 ```
 
@@ -163,7 +163,7 @@ source /etc/mining-gateway/deploy.env
 set +a
 cd "$PROJECT_ROOT"
 bash scripts/render-production-env.sh
-grep -nE 'example\.com|replace_with|NODE_TLS_REJECT_UNAUTHORIZED=0' .env .env.infrastructure && exit 1 || true
+grep -nE 'REPLACE_WITH|replace_with|NODE_TLS_REJECT_UNAUTHORIZED=0' /etc/mining-gateway/deploy.env .env .env.infrastructure && exit 1 || true
 exit
 ```
 
@@ -306,11 +306,11 @@ curl -fsS http://127.0.0.1:3000/health/ready | jq
 URLهای مشتری:
 
 ```text
-Portal:   https://panel.yourdomain.com/portal
-BTC Pool: stratum+ssl://mine.yourdomain.com:3334
+Portal:   https://panel.partie.ir/portal
+BTC Pool: stratum+ssl://btc.partie.ir:3334
 Worker:   customer-slug.worker-slug
 Password: one-time worker token
-XMR Pool: stratum+ssl://xmr.yourdomain.com:4443
+XMR Pool: stratum+ssl://xmr.partie.ir:4443
 ```
 
 ## ۱۴. تست کامل قبل از پول واقعی
@@ -381,7 +381,7 @@ exit
 
 ```bash
 export LOAD_CREDENTIALS_FILE='apps/server/test/load/credentials.json'
-export LOAD_HOST='mine.yourdomain.com'
+export LOAD_HOST='btc.partie.ir'
 export LOAD_PORT='3334'
 export LOAD_CONNECTIONS='100'
 export LOAD_HOLD_MS='1800000'
