@@ -1,3 +1,4 @@
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import {
   connect as connectTcp,
   createServer,
@@ -5,14 +6,31 @@ import {
   type Server,
   type Socket,
 } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { createServer as createTlsServer, type TLSSocket } from 'node:tls';
 import type { Upstream } from '@prisma/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { connectUpstream } from '../../src/gateway/socket-connect';
 import { ProxyProtocol } from '../../src/network/proxy-settings.dto';
 
+const openssl = [
+  'openssl',
+  'C:\\Program Files\\Git\\usr\\bin\\openssl.exe',
+  'C:\\Program Files\\Git\\mingw64\\bin\\openssl.exe',
+].find(
+  (candidate) =>
+    (candidate === 'openssl' || existsSync(candidate)) &&
+    spawnSync(candidate, ['version']).status === 0,
+);
+const opensslAvailable = Boolean(openssl);
+
 const servers: Server[] = [];
+const cleanup: Array<() => void> = [];
 afterEach(async () => {
   await Promise.all(servers.splice(0).map((server) => new Promise((r) => server.close(r))));
+  for (const action of cleanup.splice(0).reverse()) action();
   vi.restoreAllMocks();
 });
 
@@ -69,6 +87,43 @@ async function httpConnectProxy(options: {
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address() as AddressInfo;
   return { host: address.address, port: address.port, receivedAuth };
+}
+
+async function selfSignedTlsServer(): Promise<{ host: string; port: number }> {
+  const directory = mkdtempSync(join(tmpdir(), 'mining-gateway-proxy-tls-'));
+  cleanup.push(() => rmSync(directory, { recursive: true, force: true }));
+  const cert = join(directory, 'cert.pem');
+  const key = join(directory, 'key.pem');
+  const generated = spawnSync(
+    openssl!,
+    [
+      'req',
+      '-x509',
+      '-newkey',
+      'rsa:2048',
+      '-nodes',
+      '-keyout',
+      key,
+      '-out',
+      cert,
+      '-days',
+      '1',
+      '-subj',
+      '/CN=localhost',
+    ],
+    { encoding: 'utf8' },
+  );
+  if (generated.status !== 0) throw new Error(generated.stderr);
+  const server = createTlsServer(
+    { cert: readFileSync(cert), key: readFileSync(key) },
+    (socket: TLSSocket) => {
+      socket.on('data', (chunk: Buffer) => socket.write(`echo:${chunk.toString('utf8')}`));
+    },
+  );
+  servers.push(server);
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address() as AddressInfo;
+  return { host: address.address, port: address.port };
 }
 
 function upstream(overrides: Partial<Upstream>): Upstream {
@@ -145,4 +200,31 @@ describe('connectUpstream via HTTP CONNECT proxy', () => {
       }),
     ).rejects.toThrow('Proxy CONNECT failed');
   });
+
+  it.runIf(opensslAvailable)(
+    'completes the TLS handshake over the tunnel quickly instead of hanging until the timeout',
+    async () => {
+      // Regression test: tls.connect() over a tunneled socket needs the socket explicitly
+      // paused first, or the handshake silently hangs until the connection timeout. A
+      // self-signed cert can't pass our hardcoded rejectUnauthorized:true, but a *fast*
+      // certificate-validation failure proves the handshake bytes actually round-tripped
+      // through the proxy -- a hung handshake would instead fail with our own timeout error
+      // only after the full connectionTimeoutMs.
+      const destination = await selfSignedTlsServer();
+      const proxy = await httpConnectProxy({});
+      const startedAt = Date.now();
+      await expect(
+        connectUpstream(
+          upstream({
+            host: destination.host,
+            port: destination.port,
+            tls: true,
+            connectionTimeoutMs: 8_000,
+          }),
+          { protocol: ProxyProtocol.HTTP, host: proxy.host, port: proxy.port },
+        ),
+      ).rejects.toThrow(/certificate|self.signed/iu);
+      expect(Date.now() - startedAt).toBeLessThan(4_000);
+    },
+  );
 });

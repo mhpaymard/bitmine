@@ -103,6 +103,9 @@ function finalizeSocket(rawSocket: Socket, upstream: Upstream, timeoutMs: number
     const timer = setTimeout(() => {
       rawSocket.destroy(new Error(`TLS handshake to ${upstream.name} timed out`));
     }, timeoutMs);
+    // A tunneled socket (SOCKS5/CONNECT) must be explicitly paused before tls.connect() takes
+    // it over; without this the flowing/paused transition is unreliable and the handshake hangs.
+    rawSocket.pause();
     const tlsSocket = connectTls({
       socket: rawSocket,
       servername: upstream.host,
