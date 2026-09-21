@@ -23,3 +23,5 @@ prisma/dev.db
 Thumbs.db
 .DS_Store
 .local/
+.git-credentials
+.netrc
