@@ -123,6 +123,7 @@ function dependencies(candidates: Upstream[], asset: AssetCode) {
     },
     prisma: { worker: { update: vi.fn().mockResolvedValue(undefined) } },
     events: { publish: vi.fn() },
+    proxyHealth: { resolveGatewayProxy: vi.fn().mockResolvedValue(null) },
   };
   return {
     deps: deps as unknown as BitcoinSessionDependencies,

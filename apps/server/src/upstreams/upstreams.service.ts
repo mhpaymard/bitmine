@@ -4,6 +4,7 @@ import type { AssetCode, Upstream } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedAdmin } from '../auth/auth.types';
 import { PrismaService } from '../database/prisma.service';
+import { ProxyHealthService } from '../network/proxy-health.service';
 import { CryptoService } from '../security/crypto.service';
 import { connectUpstream } from '../gateway/socket-connect';
 import { WalletsService } from '../wallets/wallets.service';
@@ -16,6 +17,7 @@ export class UpstreamsService {
     private readonly crypto: CryptoService,
     private readonly audit: AuditService,
     private readonly wallets: WalletsService,
+    private readonly proxyHealth: ProxyHealthService,
   ) {}
 
   list(asset?: AssetCode) {
@@ -209,7 +211,8 @@ export class UpstreamsService {
   }
 
   private async protocolProbe(upstream: Upstream): Promise<void> {
-    const socket = await connectUpstream(upstream);
+    const proxy = await this.proxyHealth.resolveGatewayProxy();
+    const socket = await connectUpstream(upstream, proxy);
     let buffer = '';
     let nextId = 1;
     const waiters = new Map<

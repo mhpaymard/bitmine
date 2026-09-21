@@ -98,6 +98,7 @@ BITCOIN_GATEWAY_TLS_KEY_FILE=../../secrets/stratum-tls-key.pem
 - [راهنمای کامل Production](docs/PRODUCTION_RUNBOOK.fa.md)
 - [استقرار Production با Nginx](docs/PRODUCTION_NGINX.fa.md)
 - [فعال‌سازی Monero بعداً](docs/ENABLE_MONERO_LATER.fa.md)
+- [پروکسی و VPN شبکه](docs/NETWORK_PROXY.fa.md)
 - [عملیات روزانه](docs/OPERATIONS.fa.md)
 - [Backup و Restore](docs/BACKUP_RESTORE.fa.md)
 - [عیب‌یابی](docs/TROUBLESHOOTING.fa.md)

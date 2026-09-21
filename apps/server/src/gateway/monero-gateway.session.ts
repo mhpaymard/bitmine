@@ -61,7 +61,8 @@ export class MoneroGatewaySession {
     let lastError: unknown = new Error('No Monero upstream is enabled');
     for (const upstream of candidates) {
       try {
-        const socket = await connectUpstream(upstream);
+        const proxy = await this.deps.proxyHealth.resolveGatewayProxy();
+        const socket = await connectUpstream(upstream, proxy);
         this.binding = { upstream, username: '', password: this.deps.upstreams.password(upstream) };
         this.upstream = new LineJsonPeer(
           socket,

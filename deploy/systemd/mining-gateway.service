@@ -33,6 +33,7 @@ ProtectKernelModules=true
 ProtectKernelTunables=true
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 RestrictSUIDSGID=true
+ReadWritePaths=/opt/mining-gateway/.local
 UMask=0077
 LimitNOFILE=65536
 

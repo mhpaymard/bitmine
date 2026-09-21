@@ -4,6 +4,7 @@ import type { ConfigService } from '@nestjs/config';
 import type { Environment } from '../config/environment';
 import type { PrismaService } from '../database/prisma.service';
 import type { EventsService } from '../events/events.service';
+import type { ProxyHealthService } from '../network/proxy-health.service';
 import type { UpstreamsService } from '../upstreams/upstreams.service';
 import type { GatewayAuthService } from './gateway-auth.service';
 import type {
@@ -25,6 +26,7 @@ export interface BitcoinSessionDependencies {
   runtime: UpstreamRuntimeService;
   prisma: PrismaService;
   events: EventsService;
+  proxyHealth: ProxyHealthService;
 }
 
 export class BitcoinGatewaySession {
@@ -79,7 +81,8 @@ export class BitcoinGatewaySession {
     let lastError: unknown = new Error('No Bitcoin upstream is enabled');
     for (const upstream of candidates) {
       try {
-        const socket = await connectUpstream(upstream);
+        const proxy = await this.deps.proxyHealth.resolveGatewayProxy();
+        const socket = await connectUpstream(upstream, proxy);
         this.binding = {
           upstream,
           username: '',

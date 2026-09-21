@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import type { Environment } from '../config/environment';
 import { PrismaService } from '../database/prisma.service';
 import { EventsService } from '../events/events.service';
+import { ProxyHealthService } from '../network/proxy-health.service';
 import { UpstreamsService } from '../upstreams/upstreams.service';
 import { BitcoinGatewaySession } from './bitcoin-gateway.session';
 import { GatewayAuthService } from './gateway-auth.service';
@@ -32,6 +33,7 @@ export class GatewayService implements OnApplicationBootstrap, OnApplicationShut
     private readonly runtime: UpstreamRuntimeService,
     private readonly prisma: PrismaService,
     private readonly events: EventsService,
+    private readonly proxyHealth: ProxyHealthService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -97,6 +99,7 @@ export class GatewayService implements OnApplicationBootstrap, OnApplicationShut
       runtime: this.runtime,
       prisma: this.prisma,
       events: this.events,
+      proxyHealth: this.proxyHealth,
     };
   }
 

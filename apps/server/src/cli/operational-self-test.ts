@@ -6,6 +6,8 @@ import { AssetCode } from '@prisma/client';
 import type { AuditService } from '../audit/audit.service';
 import { validateEnvironment, type Environment } from '../config/environment';
 import { PrismaService } from '../database/prisma.service';
+import { ProxyHealthService } from '../network/proxy-health.service';
+import { ProxySettingsService } from '../network/proxy-settings.service';
 import { CryptoService } from '../security/crypto.service';
 import { UpstreamsService } from '../upstreams/upstreams.service';
 import { BitcoinWalletAdapter } from '../wallets/bitcoin-wallet.adapter';
@@ -29,7 +31,15 @@ async function main(): Promise<void> {
       new BitcoinWalletAdapter(config),
       new MoneroWalletAdapter(config),
     );
-    const upstreams = new UpstreamsService(prisma, crypto, {} as AuditService, wallets);
+    const proxySettings = new ProxySettingsService(prisma, crypto, {} as AuditService);
+    const proxyHealth = new ProxyHealthService(proxySettings);
+    const upstreams = new UpstreamsService(
+      prisma,
+      crypto,
+      {} as AuditService,
+      wallets,
+      proxyHealth,
+    );
     const walletStatuses = await wallets.statuses();
     const walletFailures = walletStatuses.filter((status) => !status.ok);
     if (walletFailures.length) {

@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, post, put } from '../api';
 import { Button, Card, ErrorBox, Field, Loading, PageHeader } from '../components/ui';
+import { NetworkProxySettings } from './network-proxy-settings';
 
 interface TotpSetup {
   secret: string;
@@ -147,6 +148,7 @@ export function SettingsPage() {
         ) : settings.data ? (
           <FinanceSettings settings={settings.data} />
         ) : null}
+        <NetworkProxySettings />
       </div>
     </>
   );

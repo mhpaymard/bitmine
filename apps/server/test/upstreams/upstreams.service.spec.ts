@@ -2,6 +2,7 @@ import { AssetCode, PoolProtocol } from '@prisma/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AuditService } from '../../src/audit/audit.service';
 import type { PrismaService } from '../../src/database/prisma.service';
+import type { ProxyHealthService } from '../../src/network/proxy-health.service';
 import type { CryptoService } from '../../src/security/crypto.service';
 import { UpstreamsService } from '../../src/upstreams/upstreams.service';
 import type { WalletsService } from '../../src/wallets/wallets.service';
@@ -48,8 +49,17 @@ function serviceFor(record: ReturnType<typeof upstream>) {
   const crypto = {
     decrypt: vi.fn().mockReturnValue('secret'),
   } as unknown as CryptoService;
+  const proxyHealth = {
+    resolveGatewayProxy: vi.fn().mockResolvedValue(null),
+  } as unknown as ProxyHealthService;
   return {
-    service: new UpstreamsService(prisma, crypto, {} as AuditService, {} as WalletsService),
+    service: new UpstreamsService(
+      prisma,
+      crypto,
+      {} as AuditService,
+      {} as WalletsService,
+      proxyHealth,
+    ),
     update,
   };
 }

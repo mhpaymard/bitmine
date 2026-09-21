@@ -93,6 +93,7 @@ describe('TLS mining listener', () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
     );
     await service.onApplicationBootstrap();
     cleanup.push(() => service.onApplicationShutdown());

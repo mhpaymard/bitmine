@@ -14,6 +14,7 @@ import { EventsModule } from './events/events.module';
 import { GatewayModule } from './gateway/gateway.module';
 import { HealthModule } from './health/health.module';
 import { LedgerModule } from './ledger/ledger.module';
+import { NetworkModule } from './network/network.module';
 import { PayoutsModule } from './payouts/payouts.module';
 import { PublicPortalModule } from './public-portal/public-portal.module';
 import { RedisModule } from './redis/redis.module';
@@ -59,6 +60,7 @@ import { WalletsModule } from './wallets/wallets.module';
     CustomersModule,
     UpstreamsModule,
     GatewayModule,
+    NetworkModule,
     LedgerModule,
     WalletsModule,
     SettingsModule,
