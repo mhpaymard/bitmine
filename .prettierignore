@@ -4,6 +4,7 @@ coverage/
 .git/
 backups/
 secrets/
+.cache/
 pnpm-lock.yaml
 apps/server/prisma/migrations/
 infra/observability/grafana/dashboards/

@@ -60,6 +60,7 @@
     },
     "onlyBuiltDependencies": [
       "@prisma/engines",
+      "@scarf/scarf",
       "argon2",
       "esbuild",
       "msgpackr-extract",
