@@ -6,7 +6,7 @@ Protected assets are worker tokens, upstream credentials, admin sessions, wallet
 
 ## Controls
 
-- Worker tokens contain 32 random bytes, are shown once and stored as Argon2id hashes. Rotation overlaps for a bounded grace period; revocation is immediate.
+- Worker tokens contain 32 random bytes, are shown once and stored as Argon2id hashes. Rotation overlaps for a bounded grace period; revocation is immediate. When `GATEWAY_AUTO_PROVISION_ENABLED=true`, an unrecognized `customer.worker` username claims that identity on first connect using whatever password the miner presents (including blank), creating the customer and worker automatically; the identity is then protected by that same password for all later connections, and claims are rate-limited per source IP (`GATEWAY_AUTO_PROVISION_MAX_PER_IP_PER_HOUR`) and audited (`GATEWAY_AUTO_PROVISIONED`). This trades pre-issued tokens for zero-touch onboarding — anyone who can reach the gateway can create a billing identity, so it should only be enabled where that is acceptable (e.g. a hosting operator who reviews new customers after the fact) and is rate-limited to bound abuse.
 - Worker/customer status, maximum connections and exact/CIDR IP allowlists are checked locally before upstream credentials are exposed.
 - TCP input is newline framed with a hard byte limit, idle timeout and ordered asynchronous processing.
 - Upstream passwords use AES-256-GCM with context-bound AAD. The master key and all wallet/RPC secrets are files outside Git/DB.

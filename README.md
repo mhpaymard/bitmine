@@ -66,6 +66,12 @@ docker compose --env-file .env.infrastructure --profile core --profile backup up
 5. ماینر BTC را به `stratum+tcp://SERVER_LAN_IP:3333` یا XMRig را به `SERVER_LAN_IP:4444` وصل کنید؛ username برابر `customer.worker` و password همان token است.
 6. مشتری در `/portal` hashrate، درآمد تخصیص‌یافته، تخمین، موجودی، موعد بعدی واریز و تاریخچه را می‌بیند و مقصد payout را ثبت می‌کند؛ مقصد پس از cooling امنیتی 24 ساعت فعال می‌شود.
 
+### اتصال بدون ساخت دستی customer/worker (auto-provision)
+
+اگر ساخت دستی customer/worker و token پیش از هر اتصال زیاد است، با `GATEWAY_AUTO_PROVISION_ENABLED=true` می‌توانید اجازه دهید ماینر با هر `username` ناشناخته (به شکل `customer.worker` یا حتی بدون نقطه) و هر password (حتی خالی) مستقیماً وصل و شروع به mine کردن کند؛ روی همان اتصال اول customer و worker به‌صورت خودکار با split پیش‌فرض (`GATEWAY_AUTO_PROVISION_CUSTOMER_BPS`, پیش‌فرض 8000) ساخته می‌شوند. مرحله ۱ (ساخت و تست upstream) همچنان لازم است چون مقصد واقعی share بدون آن مشخص نیست.
+
+این حالت هویت worker را فقط در **اولین** اتصال بدون گذرواژه واگذار می‌کند؛ از همان لحظه، همان password برای اتصال‌های بعدی همان `customer.worker` لازم است تا کسی نتواند بعداً با یک نام موجود جای worker دیگری را بگیرد. برای جلوگیری از سوءاستفاده (ساخت انبوه customer جعلی)، هر IP حداکثر `GATEWAY_AUTO_PROVISION_MAX_PER_IP_PER_HOUR` بار در ساعت (پیش‌فرض 20) می‌تواند identity جدید بسازد. رکورد این auto-provisioning در Audit Log با action=`GATEWAY_AUTO_PROVISIONED` ثبت می‌شود و پنل باید بعداً برای `displayName`، `allowedIps`، `maxConnections` و payout destination واقعی بازبینی و تکمیل شود؛ این حالت token امنیتی موجود را برای identityهای شناخته‌شده حذف نمی‌کند، فقط قدم دستی پیش از اولین اتصال را برمی‌دارد.
+
 زمان‌بندی تسویه از Settings پویاست: `INTERVAL=240` برای هر ۴ ساعت و `INTERVAL=360` برای هر ۶ ساعت. رسیدن زمان scheduler تضمین پرداخت نیست؛ فقط موجودی واقعاً دریافت‌شده و تأییدشده‌ای که حداقل‌ها و کنترل‌های policy را پاس کند وارد batch می‌شود.
 
 `ENABLE_MAINNET_PAYOUTS=false` پیش‌فرض سخت پروژه است. تا پایان [چک‌لیست mainnet](docs/MAINNET_CHECKLIST.fa.md) آن را تغییر ندهید.

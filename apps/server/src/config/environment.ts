@@ -47,6 +47,15 @@ const schema = z.object({
   GATEWAY_MAX_LINE_BYTES: z.coerce.number().int().min(1024).max(1_048_576).default(65_536),
   GATEWAY_IDLE_TIMEOUT_MS: z.coerce.number().int().min(10_000).default(180_000),
   GATEWAY_ENABLED: bool,
+  GATEWAY_AUTO_PROVISION_ENABLED: bool,
+  GATEWAY_AUTO_PROVISION_CUSTOMER_BPS: z.coerce.number().int().min(0).max(10_000).default(8000),
+  GATEWAY_AUTO_PROVISION_MAX_CONNECTIONS: z.coerce.number().int().min(1).max(100).default(4),
+  GATEWAY_AUTO_PROVISION_MAX_PER_IP_PER_HOUR: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(10_000)
+    .default(20),
   ALLOW_PLAINTEXT_GATEWAY_IN_PRODUCTION: bool,
   RAW_SHARE_RETENTION_DAYS: z.coerce.number().int().min(1).max(365).default(14),
   PAYOUT_TIMEZONE: z.string().default('Asia/Tehran'),
