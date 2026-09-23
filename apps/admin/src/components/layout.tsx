@@ -9,9 +9,12 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Moon,
   Network,
   Settings,
   ShieldCheck,
+  Sun,
+  SunMoon,
   Users,
   WalletCards,
   X,
@@ -20,6 +23,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../auth';
+import { useTheme, type ThemeMode } from '../theme';
 
 const nav = [
   { to: '/', key: 'dashboard', icon: LayoutDashboard },
@@ -34,9 +38,16 @@ const nav = [
   { to: '/settings', key: 'settings', icon: Settings },
 ];
 
+const themeOptions: Array<{ mode: ThemeMode; icon: typeof Sun }> = [
+  { mode: 'auto', icon: SunMoon },
+  { mode: 'light', icon: Sun },
+  { mode: 'dark', icon: Moon },
+];
+
 export function Layout() {
   const { t, i18n } = useTranslation();
   const { admin, logout } = useAuth();
+  const { mode, setMode } = useTheme();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -103,6 +114,23 @@ export function Layout() {
             <Menu size={22} />
           </button>
           <div className="topbar-spacer" />
+          <div className="segmented theme-switch" role="radiogroup" aria-label={t('theme')}>
+            {themeOptions.map(({ mode: optionMode, icon: Icon }) => (
+              <button
+                key={optionMode}
+                type="button"
+                role="radio"
+                aria-checked={mode === optionMode}
+                className={mode === optionMode ? 'active' : ''}
+                title={t(
+                  optionMode === 'auto' ? 'themeAuto' : optionMode === 'light' ? 'themeLight' : 'themeDark',
+                )}
+                onClick={() => setMode(optionMode)}
+              >
+                <Icon size={15} />
+              </button>
+            ))}
+          </div>
           <button className="language-button" onClick={() => void switchLanguage()}>
             <ArrowLeftRight size={16} />
             {t('language')}

@@ -182,6 +182,10 @@ const fa = {
     proxyStatusProxy: 'در حال استفاده از پروکسی (failover)',
     proxyLastChecked: 'آخرین بررسی',
     proxySaved: 'تنظیمات پروکسی ذخیره شد',
+    theme: 'پوسته',
+    themeAuto: 'خودکار',
+    themeLight: 'روشن',
+    themeDark: 'تیره',
   },
 };
 
@@ -366,6 +370,10 @@ const en = {
     proxyStatusProxy: 'Currently failed over to the proxy',
     proxyLastChecked: 'Last checked',
     proxySaved: 'Proxy settings saved',
+    theme: 'Theme',
+    themeAuto: 'Auto',
+    themeLight: 'Light',
+    themeDark: 'Dark',
   },
 };
 

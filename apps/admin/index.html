@@ -3,7 +3,34 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#07111f" />
+    <meta name="theme-color" content="#070f1a" />
+    <script>
+      (function () {
+        try {
+          var KEY = 'mitm-theme-override';
+          var theme = null;
+          var raw = localStorage.getItem(KEY);
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            if (
+              parsed &&
+              (parsed.theme === 'light' || parsed.theme === 'dark') &&
+              typeof parsed.expiresAt === 'number' &&
+              parsed.expiresAt > Date.now()
+            ) {
+              theme = parsed.theme;
+            } else {
+              localStorage.removeItem(KEY);
+            }
+          }
+          if (!theme) {
+            var hour = new Date().getHours();
+            theme = hour >= 6 && hour < 19 ? 'light' : 'dark';
+          }
+          document.documentElement.dataset.theme = theme;
+        } catch (e) {}
+      })();
+    </script>
     <title>Mining Gateway</title>
   </head>
   <body>
